@@ -1,5 +1,4 @@
 import glob
-import cv2
 import os
 import pandas as pd 
 import torch
@@ -24,7 +23,7 @@ class ChestDataset(Dataset):
         self.num_patient= numPatient
 
         self.transform = transform
-        # why start with 1 ? because it has the file .DS_Store in the begin
+        #  start with 1 ? because it has the file .DS_Store in the begin
         subdir= sorted(os.listdir(root_dir))[1:numPatient+1]
         self.img_path=[]
         for dir in subdir:
@@ -47,6 +46,7 @@ class ChestDataset(Dataset):
         return len(self.img_path)
 
     def __getitem__(self, idx):
+       
         label=self.labels[idx]
         im = Image.open(self.img_path[idx]) 
         im = self.transform(im)

@@ -6,7 +6,6 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 import torch.backends.cudnn as cudnn
 import numpy as np
-import torchvision
 from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
 import os
@@ -16,6 +15,10 @@ sys.path.append("../datasets")
 import data
 from torch.nn import functional as F
 from torch.utils.data.sampler import SubsetRandomSampler
+from sklearn.model_selection import train_test_split
+from torch.utils.data import Subset
+from torch.utils.data import random_split
+     
 load_dotenv()
 
 trainTransforms=transforms.Compose([
@@ -23,16 +26,15 @@ trainTransforms=transforms.Compose([
         transforms.RandomResizedCrop(256),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),  ])
-        # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
    
 valTransforms=transforms.Compose([
         transforms.Resize(320),
         transforms.ToTensor(),
-        # transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-dataset= data.ChestDataset(os.getenv("DATA_PATH")+"/train.csv",os.getenv("DATA_PATH")+"/train", transform=trainTransforms,numPatient=30)
+dataset= data.ChestDataset(os.getenv("DATA_PATH")+"/train.csv",os.getenv("DATA_PATH")+"/train", transform=trainTransforms,numPatient=200)
 batch_size = 3
+
 validation_split = .2
 shuffle_dataset = True
 random_seed= 42
@@ -46,14 +48,22 @@ train_indices, val_indices = indices[split:], indices[:split]
 
 train_sampler = SubsetRandomSampler(train_indices)
 valid_sampler = SubsetRandomSampler(val_indices)
+batch_size = 16
+validation_split = .2
+shuffle_dataset = True
+random_seed= 42
+dataset_size = len(dataset)
+indices = list(range(dataset_size))
+split = int(np.floor(validation_split * dataset_size))
+if shuffle_dataset :
+    np.random.seed(random_seed)
+    np.random.shuffle(indices)
+train_indices, val_indices = indices[split:], indices[:split]
+train_data, test_data = random_split(dataset, [0.8, 0.2])
 
-train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
-                                           sampler=train_sampler)
-validation_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-                                                sampler=valid_sampler)
-print ("len val loader {}".format(len(validation_loader)))
-print ("len val dataset {}".format(len(validation_loader)))
-print ("len train loader {}".format(len(train_loader)))
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,)
+validation_loader = torch.utils.data.DataLoader(test_data, batch_size=1)                     
+
 class Loss(nn.Module):
     def __init__(self):
         super(Loss, self).__init__()
@@ -67,12 +77,7 @@ class Loss(nn.Module):
         index3= np.ravel(target)
         nll=-log_softmax[index1,index2,index3].mean()
         
-        return nll
-        
-
-
-
-
+        return nll       
 def predict(model,sample):
     model.eval()
     with torch.no_grad():
@@ -137,11 +142,9 @@ def eval(model, criterion, data_loader):
      test_loss /= len(data_loader.dataset)
 
      print('\nEval set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-    test_loss, correct, len(data_loader.dataset)*data_loader.dataset.numclass,
-    100. * correct / (len(data_loader.dataset)*data_loader.dataset.numclass ) ))
-
-
-
+    test_loss, correct, len(data_loader.dataset)*14,
+    100. * correct / (len(data_loader.dataset)*14) ))
+    #14 is number of class (or disease)
 model=VGGClassifier(num_classes=14)
 learning_rate = 0.01
 momentum = 0.5
@@ -152,8 +155,12 @@ optimizer = optim.SGD(model.parameters(), lr=learning_rate,
 criterion=  Loss()
 
 for epoch in range(1, n_epochs + 1):
-  train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=2,)
-  eval(model=model,criterion=criterion,data_loader=validation_loader)
+
+    train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=2,)
+    
+    eval(model=model,criterion=criterion,data_loader=validation_loader)
+
+
 
 
 
