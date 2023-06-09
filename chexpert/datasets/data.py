@@ -5,22 +5,15 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
-from math import exp
 import sys
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
 import numpy as np
-from torchvision import datasets, models, transforms
-import matplotlib.pyplot as plt
+
 import os
-import data
 from torch.nn import functional as F
 from torch.utils.data import random_split
      
 class ChestDataset(Dataset):
-    """Face Landmarks dataset."""
 
     def __init__(self, csv_file, root_dir, transform, numPatient=30):
         """

@@ -22,9 +22,9 @@ validation_split=0.2
 batch_size=3
 learning_rate = 0.01
 momentum = 0.5
-n_epochs = 2
+n_epochs = 3
 log_interval=2
-numPatient=100
+numPatient=5
 
 train_image_path= os.getenv ("TRAIN_IMAGE_PATH")
 train_csv_path=os.getenv ("TRAIN_CSV_PATH")
@@ -74,6 +74,7 @@ def train(model, criterion, optimizer, data_loader,  epoch,log_interval=log_inte
         return epoch_loss, epoch_acc
 
 def eval(model,  data_loader , criterion):
+     print ("VALIDATING :")
      model.eval()
      valid_running_loss = 0.0
      valid_running_correct = 0
@@ -92,7 +93,7 @@ def eval(model,  data_loader , criterion):
      valid_running_correct, len(data_loader.dataset)*num_class,
     100. * valid_running_correct / (len(data_loader.dataset)*num_class) ))
      epoch_loss = valid_running_loss / counter
-     epoch_acc = 100. * (valid_running_correct / len(data_loader.dataset)*num_class)
+     epoch_acc = 100. * (valid_running_correct / (len(data_loader.dataset)*num_class ))
      return epoch_loss, epoch_acc
 
     
@@ -101,6 +102,9 @@ model=backbone.VGGClassifier(num_class)
 optimizer = optim.SGD(model.parameters(), lr=learning_rate,
                       momentum=momentum) 
 criterion=  utils.Loss()
+
+# self.best_valid_loss with infinity value when we 
+# create an instance of the class. This is to ensure that any loss from the model will be less than the initial value.
 save_best_model = utils.SaveBestModel()
 
 train_loss, valid_loss = [], []
@@ -118,7 +122,9 @@ for epoch in range(1, n_epochs + 1):
         valid_epoch_loss, epoch, model, optimizer, criterion
     )
     print('-'*50)
-# utils.save_model(n_epochs, model, optimizer, criterion)
+print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
+utils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
+
 
 
 
