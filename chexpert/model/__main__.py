@@ -1,30 +1,32 @@
-from math import exp
+
 import sys
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
+
 import numpy as np
 from torchvision import datasets, models, transforms
 import os
-from tempfile import TemporaryDirectory
 from dotenv import load_dotenv
 sys.path.append("../datasets")
 sys.path.append("../model")
 import data
 import utils
 import backbone
-from torch.nn import functional as F
+
      
 load_dotenv()
 # will put these param in arg parser
 validation_split=0.2
-batch_size=3
-learning_rate = 0.01
+batch_size=10
+learning_rate = 0.005
 momentum = 0.5
-n_epochs = 3
+n_epochs = 1
 log_interval=2
-numPatient=5
+numPatient={
+    "train":200,
+    "val":150
+}
 
 train_image_path= os.getenv ("TRAIN_IMAGE_PATH")
 train_csv_path=os.getenv ("TRAIN_CSV_PATH")
@@ -99,8 +101,9 @@ def eval(model,  data_loader , criterion):
     
 
 model=backbone.VGGClassifier(num_class)
-optimizer = optim.SGD(model.parameters(), lr=learning_rate,
-                      momentum=momentum) 
+# optimizer = optim.SGD(model.parameters(), lr=learning_rate,
+#                       momentum=momentum) 
+optimizer=torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
 criterion=  utils.Loss()
 
 # self.best_valid_loss with infinity value when we 

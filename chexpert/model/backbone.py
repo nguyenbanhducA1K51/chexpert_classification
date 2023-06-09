@@ -19,14 +19,21 @@ class VGGClassifier(nn.Module):
         x= self.vgg(x)
         x=self.softmax(x)
         return x
-# in progress
 class DenseNetClassifier (nn.Module):
     def __init__ (self,num_classes):
         super(DenseNetClassifier, self).__init__()
-        self.denseNet=models.densenet121(pretrained=True)
+        self.dense=models.densenet121(pretrained=True)
+        self.dense.features.conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        in_features= self.dense.classifier.in_features
+        self.dense.classifier=  utils.MultiDimLinear( in_features=in_features, out_shape=(num_classes, 3)) 
         self.softmax=nn.Softmax(dim=2)
+        for name, param in self.vgg.named_parameters():
+                if  "classifier" not in name:
+                    param.requires_grad = False
 
     def forward (self,x):
+        x=self.dense(x)
+        x=self.softmax(x)
         return x
    
 
