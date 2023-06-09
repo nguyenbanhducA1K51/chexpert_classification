@@ -29,12 +29,18 @@ class VGGClassifier(nn.Module):
         self.vgg.features[0] = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1)
         self.vgg.classifier[6] = utils.MultiDimLinear( in_features=4096, out_shape=(num_classes, 3))
         for name, param in self.vgg.named_parameters():
-                if name!="classifier.6.weight" and name!="classifier.6.bias":
+                if  "classifier" not in name:
                     param.requires_grad = False
          
     def forward(self, x):
         x= self.vgg(x)
         x=self.softmax(x)
+        return x
+# in progress
+class DenseNetClassifier (nn.Module):
+    def __init__ (self,num_classes):
+        super(DenseNetClassifier, self).__init__()
+    def forward (self,x):
         return x
    
 
