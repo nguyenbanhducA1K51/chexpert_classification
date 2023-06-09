@@ -23,7 +23,8 @@ batch_size=3
 learning_rate = 0.01
 momentum = 0.5
 n_epochs = 2
-log_interval=3
+log_interval=2
+numPatient=100
 
 train_image_path= os.getenv ("TRAIN_IMAGE_PATH")
 train_csv_path=os.getenv ("TRAIN_CSV_PATH")
@@ -43,11 +44,11 @@ trans= {
 } 
 
 num_class, train_loader,val_loader,test_loader=data.loadData(train_csv_path=train_csv_path,train_image_path=train_image_path,
- test_csv_path=test_csv_path,test_image_path=test_image_path,numPatient=50, transform=trans,validation_split = validation_split,batch_size = batch_size
+ test_csv_path=test_csv_path,test_image_path=test_image_path,numPatient=numPatient, transform=trans,validation_split = validation_split,batch_size = batch_size
 )
 
 
-def train(model, criterion, optimizer, data_loader,  epoch,log_interval=2):
+def train(model, criterion, optimizer, data_loader,  epoch,log_interval=log_interval):
         train_correct=0
         counter=0
         train_loss=0
@@ -117,7 +118,7 @@ for epoch in range(1, n_epochs + 1):
         valid_epoch_loss, epoch, model, optimizer, criterion
     )
     print('-'*50)
-utils.save_model(n_epochs, model, optimizer, criterion)
+# utils.save_model(n_epochs, model, optimizer, criterion)
 
 
 
