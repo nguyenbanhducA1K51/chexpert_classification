@@ -1,56 +1,24 @@
 
 import sys
 import torch
-import torch.nn as nn
-import torch.optim as optim
-
-import numpy as np
-from torchvision import datasets, models, transforms
-import os
-from dotenv import load_dotenv
+from torchvision import  transforms
+import json,os
 sys.path.append("../datasets")
 sys.path.append("../model")
 import data
-import utils
+import modelUtils
 import backbone
+from easydict import EasyDict as edict
 
-     
-load_dotenv()
-# will put these param in arg parser
-validation_split=0.2
-batch_size=10
-learning_rate = 0.005
-momentum = 0.5
-n_epochs = 1
-log_interval=2
-numPatient={
-    "train":200,
-    "val":150
-}
+cfg_path="../config/config.json" 
 
-train_image_path= os.getenv ("TRAIN_IMAGE_PATH")
-train_csv_path=os.getenv ("TRAIN_CSV_PATH")
-test_image_path=os.getenv ("TEST_IMAGE_PATH")
-test_csv_path=os.getenv ("TEST_CSV_PATH")
-trans= {
-   "train": transforms.Compose([
-        transforms.RandomResizedCrop(256),
-        transforms.ToTensor() ]),
+with open(cfg_path) as f:
+    cfg = edict(json.load(f))
 
-        "val":transforms.Compose([
-        transforms.Resize(256),
-         transforms.ToTensor()
-        
-       
-    ])
-} 
-
-num_class, train_loader,val_loader,test_loader=data.loadData(train_csv_path=train_csv_path,train_image_path=train_image_path,
- test_csv_path=test_csv_path,test_image_path=test_image_path,numPatient=numPatient, transform=trans,validation_split = validation_split,batch_size = batch_size
+num_class, train_loader,val_loader,test_loader=data.loadData(cfg=cfg,train_csv_path=cfg.train_csv_path,train_image_path=cfg.train_image_path,
+ test_csv_path=cfg.test_csv_path,test_image_path=cfg.test_image_path,numPatient=cfg.numPatient, validation_split = cfg.validation_split,batch_size = cfg.batch_size
 )
-
-
-def train(model, criterion, optimizer, data_loader,  epoch,log_interval=log_interval):
+def train(model, criterion, optimizer, data_loader,  epoch,log_interval):
         train_correct=0
         counter=0
         train_loss=0
@@ -99,22 +67,17 @@ def eval(model,  data_loader , criterion):
      return epoch_loss, epoch_acc
 
     
-
-model=backbone.VGGClassifier(num_class)
-# optimizer = optim.SGD(model.parameters(), lr=learning_rate,
-#                       momentum=momentum) 
-optimizer=torch.optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
-criterion=  utils.Loss()
-
+model,optimizer= modelUtils.loadModelAndOptimizer(numclass=num_class,cfg=cfg)
+criterion=  modelUtils.Loss()
 # self.best_valid_loss with infinity value when we 
 # create an instance of the class. This is to ensure that any loss from the model will be less than the initial value.
-save_best_model = utils.SaveBestModel()
+save_best_model = modelUtils.SaveBestModel()
 
 train_loss, valid_loss = [], []
 train_acc, valid_acc = [], []
-for epoch in range(1, n_epochs + 1):
-    print(f"[INFO]: Epoch {epoch} of {n_epochs}")
-    train_epoch_loss, train_epoch_acc =  train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=log_interval)
+for epoch in range(1, cfg.epochs + 1):
+    print(f"[INFO]: Epoch {epoch} of {cfg.epochs}")
+    train_epoch_loss, train_epoch_acc =  train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=cfg.log_interval)
     
     valid_epoch_loss, valid_epoch_acc =eval(model=model,data_loader=val_loader,criterion=criterion)
     train_loss.append(train_epoch_loss)
@@ -125,8 +88,8 @@ for epoch in range(1, n_epochs + 1):
         valid_epoch_loss, epoch, model, optimizer, criterion
     )
     print('-'*50)
-print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
-utils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
+# print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
+modelUtils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
 
 
 

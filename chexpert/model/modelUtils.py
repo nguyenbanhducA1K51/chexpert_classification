@@ -1,8 +1,15 @@
 import torch.nn  as nn
 import numpy as np
 import torch
+import sys
+sys.path.append("../datasets")
+sys.path.append("../model")
 
+# import data
+# import utils
+import backbone
 import matplotlib.pyplot as plt
+
 
 class MultiDimLinear(torch.nn.Linear):
     def __init__(self, in_features, out_shape, **kwargs):
@@ -19,11 +26,16 @@ class Loss(nn.Module):
         super(Loss, self).__init__()
 
     def forward(self, output, target):
+        # shape output : N*M*2 where N is batch size, M is number of disease, which is 14 in this dataset
         log_softmax=output-output.exp().sum(-1,keepdim=True).log()
-        s1=list(output.size())[0]
-        s2=list(output.size())[1]
+        s1=list(output.size())[0] # N
+        s2=list(output.size())[1] # M
         index1=np.array([[i]*s2 for i in range (s1)]).flatten()
+        # for example, if s1=7, s2=3 then 
+        #index1 =[0 0 0 1 1 1 2 2 2 3 3 3 4 4 4 5 5 5 6 6 6]
+        #index2= [0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2]
         index2=[i for i in range(s2)]*s1
+        #
         index3= np.ravel(target)
         nll=-log_softmax[index1,index2,index3].mean()
         
@@ -101,3 +113,17 @@ def save_plots(train_acc, valid_acc, train_loss, valid_loss):
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig('output/loss.png')
+
+def loadModelAndOptimizer (numclass,cfg):
+    if cfg.backbone=="densenet121":
+        model=backbone.DenseNetClassifier(numclass)
+    elif cfg.backbone=="vgg":
+        model =backbone.VGGClassifier(numclass)
+    if cfg.optimizer=="Adam":
+        op= torch.optim.Adam(model.parameters(),lr=cfg.lr,betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    elif cfg.optimizer=="SGD":
+        op=torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=cfg.momentum) 
+    return model,op
+#     
+
+
