@@ -4,13 +4,13 @@ import torch
 import sys
 sys.path.append("../datasets")
 sys.path.append("../model")
+from torch.nn import functional as F
+# Convnext
 
 # import data
 # import utils
 import backbone
 import matplotlib.pyplot as plt
-
-
 class MultiDimLinear(torch.nn.Linear):
     def __init__(self, in_features, out_shape, **kwargs):
         self.out_shape = out_shape
@@ -28,7 +28,9 @@ class Loss(nn.Module):
     def forward(self, output, target):
         # shape output : N*M*2 where N is batch size, M is number of disease, which is 14 in this dataset
         log_softmax=output-output.exp().sum(-1,keepdim=True).log()
+
         s1=list(output.size())[0] # N
+
         s2=list(output.size())[1] # M
         index1=np.array([[i]*s2 for i in range (s1)]).flatten()
         # for example, if s1=7, s2=3 then 
@@ -38,8 +40,11 @@ class Loss(nn.Module):
         #
         index3= np.ravel(target)
         nll=-log_softmax[index1,index2,index3].mean()
+    
         
         return nll   
+        
+
 
 plt.style.use('ggplot')
 class SaveBestModel:
@@ -119,10 +124,10 @@ def loadModelAndOptimizer (numclass,cfg):
         model=backbone.DenseNetClassifier(numclass)
     elif cfg.backbone=="vgg":
         model =backbone.VGGClassifier(numclass)
-    if cfg.optimizer=="Adam":
-        op= torch.optim.Adam(model.parameters(),lr=cfg.lr,betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
-    elif cfg.optimizer=="SGD":
-        op=torch.optim.SGD(model.parameters(), lr=cfg.lr, momentum=cfg.momentum) 
+    if cfg.optimizer.name=="Adam":
+        op= torch.optim.Adam(model.parameters(),lr=cfg.optimizer.lr,betas=(0.9, 0.999), eps=1e-08, weight_decay=0)
+    elif cfg.optimizer.name=="SGD":
+        op=torch.optim.SGD(model.parameters(), lr=cfg.optimizer.lr, momentum=cfg.optimizer.momentum) 
     return model,op
 #     
 

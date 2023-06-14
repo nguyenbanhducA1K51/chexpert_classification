@@ -1,22 +1,23 @@
 
 import sys
 import torch
-from torchvision import  transforms
 import json,os
 sys.path.append("../datasets")
 sys.path.append("../model")
 import data
 import modelUtils
 import backbone
+from torch.nn import functional as F
 from easydict import EasyDict as edict
+from PIL import Image
 
 cfg_path="../config/config.json" 
 
 with open(cfg_path) as f:
     cfg = edict(json.load(f))
 
-num_class, train_loader,val_loader,test_loader=data.loadData(cfg=cfg,train_csv_path=cfg.train_csv_path,train_image_path=cfg.train_image_path,
- test_csv_path=cfg.test_csv_path,test_image_path=cfg.test_image_path,numPatient=cfg.numPatient, validation_split = cfg.validation_split,batch_size = cfg.batch_size
+num_class, train_loader,val_loader,test_loader=data.loadData(cfg=cfg,train_csv_path=cfg.path.train_csv_path,train_image_path=cfg.path.train_image_path,
+ test_csv_path=cfg.path.test_csv_path,test_image_path=cfg.path.test_image_path,numPatient=cfg.numPatient, validation_split = cfg.validation_split,batch_size = cfg.train.batch_size
 )
 def train(model, criterion, optimizer, data_loader,  epoch,log_interval):
         train_correct=0
@@ -28,8 +29,9 @@ def train(model, criterion, optimizer, data_loader,  epoch,log_interval):
             counter+=1
             optimizer.zero_grad()
             output = model(data)
-            pred = output.data.max(2, keepdim=True)[1]
-            train_correct += pred.eq(target.data.view_as(pred)).sum()
+            # pred = output.data.max(1, keepdim=True)[1]
+            # train_correct += pred.eq(target.data.view_as(pred)).sum()
+            train_correct+=compare(output=output,target=target)
             loss = criterion(output, target)
             train_loss+=loss.item()
             loss.backward()
@@ -42,6 +44,12 @@ def train(model, criterion, optimizer, data_loader,  epoch,log_interval):
         epoch_loss=  train_loss/counter
         epoch_acc=100. *train_correct/(len(data_loader.dataset)*num_class)
         return epoch_loss, epoch_acc
+def compare(output,target):
+    output=torch.sigmoid(output)
+    output[output>=0.5]=1.
+    output[output<0.5]=0
+    return output.eq(target.view_as(output)).sum()
+    
 
 def eval(model,  data_loader , criterion):
      print ("VALIDATING :")
@@ -56,8 +64,7 @@ def eval(model,  data_loader , criterion):
             output = model(data)
             loss = criterion(output, target)
             valid_running_loss += loss.item()
-            pred = output.data.max(2, keepdim=True)[1]
-            valid_running_correct += pred.eq(target.data.view_as(pred)).sum()
+            valid_running_correct += compare(output=output,target=target)
     
      print('\nEval set:  Accuracy: {}/{} ({:.0f}%)\n'.format(
      valid_running_correct, len(data_loader.dataset)*num_class,
@@ -68,16 +75,16 @@ def eval(model,  data_loader , criterion):
 
     
 model,optimizer= modelUtils.loadModelAndOptimizer(numclass=num_class,cfg=cfg)
-criterion=  modelUtils.Loss()
+criterion=  F.binary_cross_entropy_with_logits
 # self.best_valid_loss with infinity value when we 
 # create an instance of the class. This is to ensure that any loss from the model will be less than the initial value.
 save_best_model = modelUtils.SaveBestModel()
 
 train_loss, valid_loss = [], []
 train_acc, valid_acc = [], []
-for epoch in range(1, cfg.epochs + 1):
-    print(f"[INFO]: Epoch {epoch} of {cfg.epochs}")
-    train_epoch_loss, train_epoch_acc =  train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=cfg.log_interval)
+for epoch in range(1, cfg.train.epochs + 1):
+    print(f"[INFO]: Epoch {epoch} of {cfg.train.epochs}")
+    train_epoch_loss, train_epoch_acc =  train(model=model, epoch=epoch, criterion=criterion, optimizer=optimizer, data_loader=train_loader, log_interval=cfg.train.log_interval)
     
     valid_epoch_loss, valid_epoch_acc =eval(model=model,data_loader=val_loader,criterion=criterion)
     train_loss.append(train_epoch_loss)
