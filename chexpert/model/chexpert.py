@@ -17,7 +17,7 @@ disease= {
 
     "0":"No Finding",
     "1":"Enlarged Cardiomediastinum",
-   "2":'Cardiomegaly',
+    "2":'Cardiomegaly',
     "3":'Lung Opacity',
     "4":'Lung Lesion',
     "5":'Edema',

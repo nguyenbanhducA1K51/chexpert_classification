@@ -1,17 +1,44 @@
 {   
-    "train_image_path": "/Users/mac/Downloads/CheXpert-v1.0-small/train",
-    "test_image_path": "/Users/mac/Downloads/CheXpert-v1.0-small/valid",
-    "train_csv_path": "/Users/mac/Downloads/CheXpert-v1.0-small/train.csv",
-    "test_csv_path": "/Users/mac/Downloads/CheXpert-v1.0-small/valid.csv", 
-    "backbone": "densenet121",
-    "validation_split":0.2,
-    "epochs": 5,
-    "log_interval":2,
-    "numPatient":{
-        "train":200,
-        "val":150
+    "path":{
+        "train_image_path": "/Users/mac/Downloads/CheXpert-v1.0-small/train",
+        "test_image_path": "/Users/mac/Downloads/CheXpert-v1.0-small/valid",
+        "train_csv_path": "/Users/mac/Downloads/CheXpert-v1.0-small/train.csv",
+        "test_csv_path": "/Users/mac/Downloads/CheXpert-v1.0-small/valid.csv" 
     },
-    "image_fix_length":512,
+    "optimizer":{
+        "name":"Adam",
+        "momentum": 0.9,
+        "lr": 1e-4},
+    "backbone": "densenet121",
+    "num_class":14,
+    "image":{
+        "image_fix_length":512,
+        "pixel_mean": 128.0,
+        "pixel_std": 64.0
+    },
+    "mode":"test",
+    "load_ckp":"False",
+    "model":"densenet121",
+    "criterion":"default",
+    "validation_split":0.2,
+    "train":{
+        "epochs": 1,
+        "log_interval":2,
+        "batch_size": 3,
+        "optimizer":{
+            "name": "Adam",
+            "lr":1e-4,
+            "weight_decay":0.0
+        }
+       
+    },
+   
+    "numPatient":{
+        "train":1000,
+        "val":200
+    },
+
+   
     "split_output": true,
     "modify_gp": true,
     "mix_precision": true,
@@ -19,26 +46,8 @@
     "full_classes": false,
     "conditional_training": false,
     "smooth_mode": "pos",
-    "lr": 1e-4,
-    "batch_size": 10,
-    "width": 512,
-    "height": 512,
-    "long_side": 512,
-    "pixel_mean": 128.0,
-    "pixel_std": 64.0,
+   
     "use_pixel_std": true,
-    "use_equalizeHist": true,
-    "use_transforms_type": "Aug",
-    "gaussian_blur": 3,
-    "enhance_index": [2,6],
-    "enhance_times": 1,
-    "fc_bn": false,
-    "lse_gamma": 0.5,
-    "fc_drop": 0,
-    "optimizer": "Adam",
-    "momentum": 0.9,
-    "weight_decay": 0.0,
-    "iter_log": 200,
     "log_dir": "DenseNet121_2601",
     "ckp_path": "./"
 }
