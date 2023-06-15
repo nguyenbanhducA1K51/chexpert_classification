@@ -204,3 +204,21 @@ Train Epoch: 3 [240/362 (99%)]   Loss: 0.252191
 Train accuracy : 86% 
 VALIDATING :
 Accuracy: 297/364 (82%)
+
+
+Train Epoch: 1 [4068/4075 (100%)]        Loss: 0.352903
+Train Epoch: 1 [1358/4075 (100%)]        Loss: 0.251844
+Train accuracy : 85% 
+VALIDATING :
+
+Eval set:  Accuracy: 507/644 (79%)
+
+AUC : [('class No Finding', 0.96), ('class Enlarged Cardiomediastinum', 0.49), ('class Cardiomegaly', 0.54), ('class Lung Opacity', 0.53), ('class Edema', 0.55), ('class Consolidation', 0.76), ('class Atelectasis', 0.64), ('class Pneumothorax', 0.64), ('class Pleural Effusion', 0.75), ('class Support Devices', 0.88)]
+
+Best validation loss: 0.5009334867441251
+
+Saving best model for epoch: 2
+
+--------------------------------------------------
+ train accu [tensor(84.9641)] 
+ val accu [tensor(78.7267)]
