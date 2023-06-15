@@ -119,7 +119,7 @@ def save_plots(train_acc, valid_acc, train_loss, valid_loss):
     plt.legend()
     plt.savefig('output/loss.png')
 
-def loadModelAndOptimizer (numclass,cfg):
+def loadModel (cfg,num_class):
     if cfg.backbone=="densenet121":
         model=backbone.DenseNetClassifier(numclass)
     elif cfg.backbone=="vgg":
