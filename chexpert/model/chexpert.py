@@ -32,16 +32,17 @@ disease= {
 }
 
 class chexpertNet():
-    def __init__(self,cfg):
+    def __init__(self,cfg,device):
  
         self.cfg=cfg
+        self.device=device
         self.num_class=cfg.num_class
-        self.model=loadModel(self.cfg)
+        self.model=loadModel(self.cfg).to(device)
         self.optimizer=loadOptimizer(cfg,self.model)
         self.criterion=loadCriterion(cfg)
         
-    def train_epoch(self,data_loader):
-            epochs=self.cfg.train.epochs
+    def train_epoch(self,data_loader,epoch):
+            # epochs=self.cfg.train.epochs
             log_interval=self.cfg.train.log_interval
 
             train_correct=0
@@ -51,11 +52,12 @@ class chexpertNet():
            
             self.model.train()
             for batch_idx, (data, target) in enumerate(data_loader):
+                data=data.to(self.device)
+                target=target.to(self.device)
                 counter+=1
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                # pred = output.data.max(1, keepdim=True)[1]
-                # train_correct += pred.eq(target.data.view_as(pred)).sum()
+            
                 train_correct+=compare(output=output,target=target)
                 loss = self.criterion(output, target)
                 train_loss+=loss.item()
@@ -63,7 +65,7 @@ class chexpertNet():
                 self.optimizer.step()
                 if batch_idx % log_interval == 0:
                     print('Train Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.6f}'.format(
-                        epochs, batch_idx * len(data), len(data_loader.dataset), 
+                        epoch, batch_idx * len(data), len(data_loader.dataset), 
                         100. * batch_idx / len(data_loader),  loss.item()))
             print ("Train accuracy : {:.0f}% ".format (100. *train_correct/(len(data_loader.dataset)*self.num_class)))
             epoch_loss=  train_loss/counter
@@ -81,6 +83,8 @@ class chexpertNet():
         y_true=[]
         with torch.no_grad():
             for data, target in data_loader:
+                data=data.to(self.device)
+                target=target.to(self.device)
                 counter+=1
                 y_true.append(target)
 
@@ -108,7 +112,7 @@ class chexpertNet():
         train_acc, valid_acc = [], []
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            train_epoch_loss, train_epoch_acc =  self.train_epoch( data_loader=train_data)
+            train_epoch_loss, train_epoch_acc =  self.train_epoch( data_loader=train_data,epoch=epoch)
             
             valid_epoch_loss, valid_epoch_acc =self.eval(data_loader=val_data)
             train_loss.append(train_epoch_loss)
@@ -119,7 +123,7 @@ class chexpertNet():
                 valid_epoch_loss, epoch, self.model, self.optimizer, self.criterion
         )
         print('-'*50)
-        print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
+        # print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
         modelUtils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
 
 
@@ -127,7 +131,7 @@ class chexpertNet():
         model=self.model
         if self.cfg.load_ckp:
             
-            model.load_state_dict(torch.load("/Users/mac/vinBrain/cvDucnguyen/chexpert/model/output/best_model.pth")['model_state_dict'])
+            model.load_state_dict(torch.load("/root/project/chexpert/model/output/best_model.pth")['model_state_dict'])
         else:
             self.eval(test_data)
             
@@ -149,8 +153,8 @@ def compare(output,target):
 
 def calculateAUC (y_score,y_true):
     # y_score , y_true are tensor of shape N* (num class)
-    y_score=y_score.detach().numpy()
-    y_true=y_true.detach().numpy()
+    y_score=y_score.cpu().detach().numpy()
+    y_true=y_true.cpu().detach().numpy()
     AUC=[]
     for i in range (y_score.shape[1]):
         y_t=y_true[:,i].copy()
