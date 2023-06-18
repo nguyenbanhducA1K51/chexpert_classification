@@ -1,14 +1,12 @@
 {   
     "path":{
+        "root":"/root",
         "train_image_path": "/root/CheXpert-v1.0-small/train",
         "test_image_path": "/root/CheXpert-v1.0-small/valid",
         "train_csv_path": "/root/CheXpert-v1.0-small/train.csv",
         "test_csv_path": "/root/CheXpert-v1.0-small/valid.csv" 
     },
-    "optimizer":{
-        "name":"AUC",
-        "momentum": 0.9,
-        "lr": 1e-4},
+    
     "backbone": "densenet121",
     "num_class":14,
     "image":{
@@ -26,15 +24,19 @@
         "log_interval":2,
         "batch_size": 32,
         "optimizer":{
-            "name": "Adam",
-            "lr":1e-3,
+            "name": "SGD",
+            "lr":1e-4,
             "weight_decay":0.0
         }
        
     },
+    "mini_data":{
+        "train":5000,
+        "val":200
+    },
    
     "numPatient":{
-        "train":10000,
+        "train":5000,
         "val":200
     },
 

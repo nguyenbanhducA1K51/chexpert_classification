@@ -114,7 +114,9 @@ test_image_path,numPatient,validation_split = .4,batch_size = 1
     train_transform = T.Compose([
         T.RandomResizedCrop(320),
         lambda x: torch.from_numpy(np.array(x, copy=True)).float().div(255).unsqueeze(0),   # tensor in [0,1]
-        T.Normalize(mean=[0.5330], std=[0.0349]),                                           # whiten with dataset mean and std
+        T.Normalize(mean=[0.5330], std=[0.0349]),   
+        T.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.8, 1.2), shear=10),
+        
         lambda x: x.expand(3,-1,-1)])  
     val_transform = T.Compose([      
         T.Resize(320),

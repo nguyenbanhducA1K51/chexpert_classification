@@ -9,7 +9,7 @@ import data
 import modelUtils
 import backbone
 from torch.nn import functional as F
-from sklearn.metrics import roc_curve, auc, precision_recall_curve
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
 from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
@@ -18,6 +18,7 @@ from enum import Enum
 from libauc.optimizers import PESG 
 from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
 import torch.nn as nn
+from torch.optim.lr_scheduler import StepLR
 
 disease= { 
 
@@ -43,9 +44,9 @@ class chexpertNet():
         self.cfg=cfg
         self.device=device
         self.num_class=cfg.num_class
-        self.model=loadModel(self.cfg).to(device)
-        self.optimizer=loadOptimizer(cfg,self.model)
-        self.criterion=loadCriterion(cfg)
+        self.model=self.loadModel(self.cfg).to(device)
+        self.optimizer, self.scheduler=self.loadOptimizer(cfg,self.model)
+        self.criterion=self.loadCriterion(cfg)
         
     def train_epoch(self,data_loader,epoch):
             # epochs=self.cfg.train.epochs
@@ -70,10 +71,11 @@ class chexpertNet():
                 # train_loss+=loss.item()
                 loss.backward()
                 self.optimizer.step()
+                self.scheduler.step()
                 if batch_idx % log_interval == 0:
-                    print('Train Epoch: {} [{}/{} ({:.0f}%)]\t '.format(
+                    print(' Batch index {} Train Epoch: {} [{}/{} ({:.0f}%)]\t  Loss {: .2f}'.format( batch_idx,
                         epoch, batch_idx * len(data), len(data_loader.dataset), 
-                        100. * batch_idx / len(data_loader), ))
+                        100. * batch_idx / len(data_loader),loss.item() ))
         
     def eval(self,data_loader):
         print ("VALIDATING :")
@@ -93,7 +95,8 @@ class chexpertNet():
                 # ouput=torch.sigmoid(output)
                 y_score.append(output)
         
-                loss = self.criterion(output, target).sum(1).mean(0)               
+                loss = self.criterion(output, target).sum(1).mean(0)    
+                print ("loss: {: .2f}".format (loss.item()))           
                
         y_score=torch.concat(y_score,dim=0).detach()
         y_true=torch.concat(y_true,dim=0).detach()
@@ -116,8 +119,7 @@ class chexpertNet():
         #         valid_epoch_loss, epoch, self.model, self.optimizer, self.criterion
         # )
         print('-'*50)
-        # print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
-        # modelUtils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
+        
 
 
     def test(self,test_data):
@@ -136,25 +138,16 @@ class chexpertNet():
         
         return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
             
-def loadOptimizer(cfg,model):
+    def loadOptimizer(self,cfg,model):
         if cfg.train.optimizer.name=="Adam":
         
             return optim.Adam(model.parameters(),lr=cfg.train.optimizer.lr, weight_decay=cfg.train.optimizer.weight_decay)
-        elif cfg.train.optimizer.name=="AUC":
-            lr = 0.1 
-            epoch_decay = 2e-3
-            weight_decay = 1e-5
-            margin = 1.0
-            total_epochs = 2
-            loss_fn=AUCM_MultiLabel(num_classes=14)
-            return PESG(model, 
-                 loss_fn=loss_fn,
-                 lr=lr, 
-                 margin=margin, 
-                 epoch_decay=epoch_decay, 
-                 weight_decay=weight_decay)
-
-   
+        elif cfg.train.optimizer.name=="SGD":
+            
+            op= optim.SGD(model.parameters(),lr=0.1, weight_decay=0.001)
+            scheduler = StepLR(op, step_size=30, gamma=0.1)
+            return op, scheduler
+       
 
 def compare(output,target):
     output=torch.sigmoid(output)

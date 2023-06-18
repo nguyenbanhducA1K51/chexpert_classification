@@ -33,7 +33,29 @@ class DenseNetClassifier (nn.Module):
     def generateClassificationLayer(self,in_feature):
             for i in range (self.num_classes):
                 setattr(self,"cls_"+str(i),nn.Linear(in_features=in_feature,out_features=1,bias=True))
+    
+
+# class DenseNetClassifier (nn.Module):
+#     def __init__ (self,num_classes):
+#         super(DenseNetClassifier, self).__init__()
+#         self.denseNet=models.densenet121(pretrained=True)
+#         self.n_features= self.denseNet.classifier.in_features
+#         self.denseNet.classifier=nn.Linear(self.n_features,14)
+
+#     def forward (self,x):
+#         x=self.denseNet(x)
+             
+#         return x
+   
+    
+
+    
        
+       
+# model=DenseNetClassifier(14)
+# a=torch.rand( (12,3,320,320))
+# b=model(a)
+# print (b.size())
 
 
 
