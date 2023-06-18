@@ -3,15 +3,21 @@ import torch
 import json,os
 sys.path.append("../datasets")
 sys.path.append("../model")
+# from ..datasets.data import 
+# from ..model import modelUtils,backbone
 import data
 import modelUtils
 import backbone
 from torch.nn import functional as F
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
 from enum import Enum
+# from libauc.losses import AUCMLoss 
+from libauc.optimizers import PESG 
+from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
+import torch.nn as nn
 
 disease= { 
 
@@ -52,59 +58,49 @@ class chexpertNet():
            
             self.model.train()
             for batch_idx, (data, target) in enumerate(data_loader):
-                data=data.to(self.device)
+                data=data.to(self.device).float()
                 target=target.to(self.device)
                 counter+=1
                 self.optimizer.zero_grad()
                 output = self.model(data)
-            
+                output=torch.sigmoid(output)
                 train_correct+=compare(output=output,target=target)
-                loss = self.criterion(output, target)
-                train_loss+=loss.item()
+                # print (torch.unique(target))
+                loss = self.criterion(output, target).sum(1).mean(0)  
+                # train_loss+=loss.item()
                 loss.backward()
                 self.optimizer.step()
                 if batch_idx % log_interval == 0:
-                    print('Train Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.6f}'.format(
+                    print('Train Epoch: {} [{}/{} ({:.0f}%)]\t '.format(
                         epoch, batch_idx * len(data), len(data_loader.dataset), 
-                        100. * batch_idx / len(data_loader),  loss.item()))
-            print ("Train accuracy : {:.0f}% ".format (100. *train_correct/(len(data_loader.dataset)*self.num_class)))
-            epoch_loss=  train_loss/counter
-            epoch_acc=100. *train_correct/(len(data_loader.dataset)*self.num_class)
-            
-            
-            return epoch_loss, epoch_acc
+                        100. * batch_idx / len(data_loader), ))
+        
     def eval(self,data_loader):
         print ("VALIDATING :")
         self.model.eval()
-        valid_running_loss = 0.0
-        valid_running_correct = 0
+       
         counter = 0
         y_score=[]
         y_true=[]
         with torch.no_grad():
             for data, target in data_loader:
-                data=data.to(self.device)
+                data=data.to(self.device).float()
                 target=target.to(self.device)
                 counter+=1
                 y_true.append(target)
 
                 output = self.model(data)
+                # ouput=torch.sigmoid(output)
                 y_score.append(output)
-                loss = self.criterion(output, target)
-                valid_running_loss += loss.item()
-                valid_running_correct += compare(output=output,target=target)
         
-        print('\nEval set:  Accuracy: {}/{} ({:.0f}%)\n'.format(
-        valid_running_correct, len(data_loader.dataset)*self.num_class,
-        100. * valid_running_correct / (len(data_loader.dataset)*self.num_class) ))
-        epoch_loss = valid_running_loss / counter
-        epoch_acc = 100. * (valid_running_correct / (len(data_loader.dataset)*self.num_class ))
+                loss = self.criterion(output, target).sum(1).mean(0)               
+               
         y_score=torch.concat(y_score,dim=0).detach()
         y_true=torch.concat(y_true,dim=0).detach()
 
         AUC=calculateAUC(y_score=y_score,y_true=y_true)
-        print ("AUC : {}".format (AUC))
-        return epoch_loss, epoch_acc
+        print ("Val set : AUC : {}".format (AUC))
+
     
     def train_epochs (self,train_data,val_data):
         save_best_model = modelUtils.SaveBestModel()
@@ -112,19 +108,16 @@ class chexpertNet():
         train_acc, valid_acc = [], []
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            train_epoch_loss, train_epoch_acc =  self.train_epoch( data_loader=train_data,epoch=epoch)
+            self.train_epoch( data_loader=train_data,epoch=epoch)
             
-            valid_epoch_loss, valid_epoch_acc =self.eval(data_loader=val_data)
-            train_loss.append(train_epoch_loss)
-            valid_loss.append(valid_epoch_loss)
-            train_acc.append(train_epoch_acc)
-            valid_acc.append(valid_epoch_acc)
-            save_best_model(
-                valid_epoch_loss, epoch, self.model, self.optimizer, self.criterion
-        )
+            self.eval(data_loader=val_data)
+           
+        #     save_best_model(
+        #         valid_epoch_loss, epoch, self.model, self.optimizer, self.criterion
+        # )
         print('-'*50)
         # print (" train accu {} \n val accu {}".format(train_acc,valid_acc))
-        modelUtils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
+        # modelUtils.save_plots(train_acc, valid_acc, train_loss, valid_loss)
 
 
     def test(self,test_data):
@@ -134,17 +127,35 @@ class chexpertNet():
             model.load_state_dict(torch.load("/root/project/chexpert/model/output/best_model.pth")['model_state_dict'])
         else:
             self.eval(test_data)
+    def loadModel(self,cfg):
+        if cfg.model=="densenet121":
+            return backbone.DenseNetClassifier(num_classes=cfg.num_class)
+    def loadCriterion(self,cfg):
+            # return AUCM_MultiLabel(num_classes=14)
+            # return AUCMLoss()
+        
+        return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
             
 def loadOptimizer(cfg,model):
         if cfg.train.optimizer.name=="Adam":
         
             return optim.Adam(model.parameters(),lr=cfg.train.optimizer.lr, weight_decay=cfg.train.optimizer.weight_decay)
+        elif cfg.train.optimizer.name=="AUC":
+            lr = 0.1 
+            epoch_decay = 2e-3
+            weight_decay = 1e-5
+            margin = 1.0
+            total_epochs = 2
+            loss_fn=AUCM_MultiLabel(num_classes=14)
+            return PESG(model, 
+                 loss_fn=loss_fn,
+                 lr=lr, 
+                 margin=margin, 
+                 epoch_decay=epoch_decay, 
+                 weight_decay=weight_decay)
+
    
-def loadModel(cfg):
-        if cfg.model=="densenet121":
-            return backbone.DenseNetClassifier(num_classes=cfg.num_class)
-def loadCriterion(cfg):
-        return F.binary_cross_entropy_with_logits
+
 def compare(output,target):
     output=torch.sigmoid(output)
     output[output>=0.5]=1.
@@ -153,6 +164,7 @@ def compare(output,target):
 
 def calculateAUC (y_score,y_true):
     # y_score , y_true are tensor of shape N* (num class)
+    y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
     y_true=y_true.cpu().detach().numpy()
     AUC=[]
@@ -163,8 +175,24 @@ def calculateAUC (y_score,y_true):
             # print ("only one class present in disease "+str(i))
             continue         
         else:
-            # print ("unique {} {}".format (np.unique(y_t ), i))
-            score =roc_auc_score(y_true[:,i].copy(),y_score[:,i].copy()) 
+            score =roc_auc_score(y_true=y_true[:,i].copy(),y_score=y_score[:,i].copy()) 
             score=round(score, 2)
             AUC.append ( ("class {}".format(disease[str(i)]),score))      
     return AUC
+def compute_metrics(outputs, targets, losses):
+    n_classes = outputs.shape[1]
+    fpr, tpr, aucs, precision, recall = {}, {}, {}, {}, {}
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(targets[:,i], outputs[:,i])
+        aucs[i] = auc(fpr[i], tpr[i])
+        precision[i], recall[i], _ = precision_recall_curve(targets[:,i], outputs[:,i])
+        fpr[i], tpr[i], precision[i], recall[i] = fpr[i].tolist(), tpr[i].tolist(), precision[i].tolist(), recall[i].tolist()
+
+    metrics = {'fpr': fpr,
+               'tpr': tpr,
+               'aucs': aucs,
+               'precision': precision,
+               'recall': recall,
+               'loss': dict(enumerate(losses.mean(0).tolist()))}
+
+    return metrics
