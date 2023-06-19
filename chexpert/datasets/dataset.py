@@ -27,12 +27,12 @@ class ChestDataset(Dataset):
         self.root=root
         self.transform=transform
         self.df=pd.read_csv(csv_file)
-        # self.df=self.df.fillna(0)
-        # self.df= self.df.replace(-1,1)
-
         self.attr_idxs = [self.df.columns.tolist().index(a) for a in self.disease]
+        self.labels=self.df.iloc[:,self. attr_idxs]
+        self.labels.fillna(0, inplace=True)
+        self.labels.replace(-1,1,inplace=True)
         print( "length of original data: {}".format(len(self.df)) )
-        ls= self.df[self.disease].sum()
+        ls= self.labels.sum()
         print (ls)
         if mini_data is not None:
             self.length_sample=min ( mini_data, len(self.df))
@@ -42,19 +42,12 @@ class ChestDataset(Dataset):
     def __len__(self):
         return self.length_sample
     def __getitem__(self,idx):
-        label=self.df.iloc[idx,self.attr_idxs]
-        label=label.fillna(0)
-        label=label.replace(-1,1)
+        label=self.labels.iloc[idx]
         label=label.to_numpy()
-        img_path=os.path.join(self.root,self.df.iloc[idx,0])
-     
-        image = Image.open(img_path)
-        
-        if self.transform is not None:
-           
+        img_path=os.path.join(self.root,self.df.iloc[idx,0])   
+        image = Image.open(img_path)       
+        if self.transform is not None:        
             image=self.transform(image)  
-        # print (type(image))
-        # print (label.shape)
         return image,label
     def getNumClass(self):
         return len(self.attr_idxs)
@@ -88,7 +81,7 @@ mini_data=None,validation_split = .4,batch_size = 1
         trainset=ChestDataset(disease=disease,root=root,csv_file=train_csv_path, transform=train_transform)
 
         testset=ChestDataset(disease=disease,root=root,csv_file=test_csv_path,transform=val_transform)
-   
+    # print (trainset.__getitem__(1))
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
     # validation_loader = torch.utils.data.DataLoader(val_data, batch_size=1)                     
 

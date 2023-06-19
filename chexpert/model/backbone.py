@@ -24,7 +24,6 @@ class DenseNetClassifier (nn.Module):
         for i in range(0,self.num_classes):
             class_layer=getattr(self,"cls_"+str(i))
             z=self.pool(x,(1,1))
-            # print ("z1 {}".format (z.size()))
             z=torch.flatten(z,1)
             binary=class_layer(z)
             logits.append(binary)

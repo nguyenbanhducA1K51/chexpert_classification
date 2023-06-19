@@ -16,11 +16,11 @@ with open(cfg_path) as f:
 num_class, train_loader,test_loader=dataset.loadData(disease=cfg.disease,root=cfg.path.root,train_csv_path=cfg.path.train_csv_path,
  test_csv_path=cfg.path.test_csv_path, mini_data=cfg.mini_data, validation_split = cfg.validation_split,batch_size = cfg.train.batch_size
 )
-print (num_class)
 # get the shape of first example 
 # train_loader.dataset[0] will return the tuple of image and label, image is numpy array
 
 # print (train_loader.dataset[0][0].shape)
+
 model=chexpert.chexpertNet(cfg=cfg,device=device,num_class=num_class)
 model.train_epochs(train_data=train_loader,val_data=test_loader)
 

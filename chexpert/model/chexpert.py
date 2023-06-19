@@ -49,7 +49,7 @@ class chexpertNet():
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(y_score=output, y_true=target,device=self.device).sum(1).mean(0) 
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.5).sum(1).mean(0) 
     
                 loss.backward()
                 self.optimizer.step()
@@ -75,8 +75,8 @@ class chexpertNet():
                 output = self.model(data)
                 y_score.append(output)
         
-                loss = self.criterion(y_score=output, y_true=target,device=self.device).sum(1).mean(0)    
-                print ("loss: {: .2f}".format (loss.item()))           
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.5).sum(1).mean(0)    
+                print ("loss: {: .5f}".format (loss.item()))           
                
         y_score=torch.concat(y_score,dim=0).detach()
         y_true=torch.concat(y_true,dim=0).detach()
