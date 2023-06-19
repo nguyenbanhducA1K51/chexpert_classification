@@ -37,17 +37,6 @@ class DenseNetClassifier (nn.Module):
     
 
 
-   
-    
-
-    
-       
-       
-# model=DenseNetClassifier(14)
-# a=torch.rand( (12,3,320,320))
-# b=model(a)
-# print (b.size())
-
 
 
 

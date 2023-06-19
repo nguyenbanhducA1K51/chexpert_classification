@@ -5,7 +5,9 @@ from easydict import EasyDict as edict
 import json,os
 from PIL import Image
 import matplotlib.pyplot as plt
-
+from torch.nn import functional as F
+import torch
+import torch.nn as nn
 
 def fix_ratio(image, cfg):
     h, w, c = image.shape
@@ -56,33 +58,20 @@ def trainTransform(image):
     return image
 
 
+# def balanceCE(y_score,y_pred):
+#     return
+def balanceCE(y_score,y_true,device):
+    y_score=torch.sigmoid(y_score)
+    y_score=torch.clamp(y_score,min=1e-10, max=0.9999999)
+    oneMinusB=torch.sum(y_true,dim=0)/y_true.size()[0]
+    
+    oneMinusB= oneMinusB.unsqueeze(0).to(device)
 
+    oneMinusB=torch.repeat_interleave(oneMinusB, torch.tensor([y_true.size()[0]]).to(device), dim=0)
+    
+    B= (1- oneMinusB)
+    oneMinusB=torch.clamp(oneMinusB,min=1e-10, max=0.9999999)
+    B=torch.clamp(B,min=1e-10, max=0.9999999)
+    loss=-B*y_true*torch.log(y_score)-(1-y_true)*oneMinusB*torch.log(1-y_score)
+    return loss.to(device)
 
-
-# cfg_path="./config/config.json" 
-
-# with open(cfg_path) as f:
-#     cfg = edict(json.load(f))
-# path="/Users/mac/Downloads/CheXpert-v1.0-small/train/patient00001/study1/view1_frontal.jpg"
-
-# image=cv2.imread(path,0)
-
-# image = Image.fromarray(image)
-# # image.show()
-# image=trainTransform(image=image)
-# image.show()
-# # print (image.shape)
-# image=np.array(image)
-# print (image.shape)
-# image=defaultTransform(image,cfg=cfg)
-
-# print (image.shape)
-# image=image.transpose( (1,2,0))
-# plt.imshow(image)
-# plt.show()
-# image = Image.fromarray(image)
-# image.show()
-
-# to show an image, first use cv2.imread(path,0), it will return an numpy array
-# then use Image.fromarray(image), which will convert to PIL image,then can show it use
-#image.show()

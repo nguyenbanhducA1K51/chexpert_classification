@@ -21,24 +21,9 @@ from easydict import EasyDict as edict
 import json,os
 
 class ChestDataset(Dataset):
-    disease= [
-
-    "No Finding",
-    "Enlarged Cardiomediastinum",
-    "Cardiomegaly",
-    'Lung Opacity',
-    'Lung Lesion',
-    'Edema',
-    'Consolidation',
-    'Pneumonia',
-     "Atelectasis",
-     "Pneumothorax",
-    "Pleural Effusion",
-     "Pleural Other",
-     "Fracture",
-     "Support Devices" 
-]
-    def __init__(self,root,csv_file,transform=None, mini_data=None):
+   
+    def __init__(self,disease,root,csv_file,transform=None, mini_data=None):
+        self.disease=disease
         self.root=root
         self.transform=transform
         self.df=pd.read_csv(csv_file)
@@ -74,7 +59,7 @@ class ChestDataset(Dataset):
     def getNumClass(self):
         return len(self.attr_idxs)
 
-def loadData(root,train_csv_path, test_csv_path,
+def loadData(disease,root,train_csv_path, test_csv_path,
 mini_data=None,validation_split = .4,batch_size = 1
 ):
 
@@ -96,13 +81,13 @@ mini_data=None,validation_split = .4,batch_size = 1
         ]) 
       
     if mini_data is not None:
-        trainset=ChestDataset(root,csv_file=train_csv_path,mini_data=mini_data["train"], transform=train_transform)
+        trainset=ChestDataset(disease=disease,root=root,csv_file=train_csv_path,mini_data=mini_data["train"], transform=train_transform)
 
-        testset=ChestDataset(root,csv_file=test_csv_path,mini_data=mini_data["val"],transform=val_transform)
+        testset=ChestDataset(disease=disease,root=root,csv_file=test_csv_path,mini_data=mini_data["val"],transform=val_transform)
     else:
-        trainset=ChestDataset(root,csv_file=train_csv_path, transform=train_transform)
+        trainset=ChestDataset(disease=disease,root=root,csv_file=train_csv_path, transform=train_transform)
 
-        testset=ChestDataset(root,csv_file=test_csv_path,transform=val_transform)
+        testset=ChestDataset(disease=disease,root=root,csv_file=test_csv_path,transform=val_transform)
    
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,shuffle=True)
     # validation_loader = torch.utils.data.DataLoader(val_data, batch_size=1)                     

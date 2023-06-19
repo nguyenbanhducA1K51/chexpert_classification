@@ -1,6 +1,9 @@
+train on 10000 samples:
 Val set : AUC : [('class No Finding', 0.86), ('class Enlarged Cardiomediastinum', 0.31), ('class Cardiomegaly', 0.78), ('class Lung Opacity', 0.83), ('class Lung Lesion', 0.08), ('class Edema', 0.83), ('class Consolidation', 0.73), ('class Pneumonia', 0.69), ('class Atelectasis', 0.78), ('class Pneumothorax', 0.73), ('class Pleural Effusion', 0.86), ('class Pleural Other', 0.49), ('class Support Devices', 0.79)]
 Val set : AUC : [('class No Finding', 0.87), ('class Enlarged Cardiomediastinum', 0.45), ('class Cardiomegaly', 0.82), ('class Lung Opacity', 0.86), ('class Lung Lesion', 0.3), ('class Edema', 0.84), ('class Consolidation', 0.85), ('class Pneumonia', 0.77), ('class Atelectasis', 0.82), ('class Pneumothorax', 0.81), ('class Pleural Effusion', 0.88), ('class Pleural Other', 0.12), ('class Support Devices', 0.76)]
 
 
-train on 100000sample:
+train on 100000 samples:
 Val set : AUC : [('class No Finding', 0.89), ('class Enlarged Cardiomediastinum', 0.29), ('class Cardiomegaly', 0.77), ('class Lung Opacity', 0.89), ('class Lung Lesion', 0.01), ('class Edema', 0.89), ('class Consolidation', 0.85), ('class Pneumonia', 0.73), ('class Atelectasis', 0.82), ('class Pneumothorax', 0.8), ('class Pleural Effusion', 0.92), ('class Pleural Other', 0.76), ('class Support Devices', 0.83)]
+
+Val set : AUC : [('class No Finding', 0.88), ('class Enlarged Cardiomediastinum', 0.2), ('class Cardiomegaly', 0.78), ('class Lung Opacity', 0.86), ('class Lung Lesion', 0.88), ('class Edema', 0.86), ('class Consolidation', 0.69), ('class Pneumonia', 0.8), ('class Atelectasis', 0.71), ('class Pneumothorax', 0.9), ('class Pleural Effusion', 0.17), ('class Pleural Other', 0.78)]

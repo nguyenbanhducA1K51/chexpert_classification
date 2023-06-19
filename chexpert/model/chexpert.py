@@ -5,7 +5,7 @@ sys.path.append("../datasets")
 sys.path.append("../model")
 # from ..datasets.data import 
 # from ..model import modelUtils,backbone
-
+import dataUtils
 import modelUtils
 import backbone
 from torch.nn import functional as F
@@ -20,30 +20,15 @@ from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 
-disease= { 
 
-    "0":"No Finding",
-    "1":"Enlarged Cardiomediastinum",
-    "2":'Cardiomegaly',
-    "3":'Lung Opacity',
-    "4":'Lung Lesion',
-    "5":'Edema',
-    "6":'Consolidation',
-    "7":'Pneumonia',
-    "8":"Atelectasis",
-    "9": "Pneumothorax",
-    "10":"Pleural Effusion",
-    "11": "Pleural Other",
-    "12": "Fracture",
-    "13": "Support Devices" 
-}
 
 class chexpertNet():
-    def __init__(self,cfg,device):
+    def __init__(self,cfg,device,num_class):
  
         self.cfg=cfg
+        self.disease=cfg.disease
         self.device=device
-        self.num_class=cfg.num_class
+        self.num_class=num_class
         self.model=self.loadModel(self.cfg).to(device)
         self.optimizer, self.scheduler=self.loadOptimizer(cfg,self.model)
         self.criterion=self.loadCriterion(cfg)
@@ -64,13 +49,13 @@ class chexpertNet():
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target).sum(1).mean(0)  
-                # train_loss+=loss.item()
+                loss = self.criterion(y_score=output, y_true=target,device=self.device).sum(1).mean(0) 
+    
                 loss.backward()
                 self.optimizer.step()
                 # self.scheduler.step()
                 if batch_idx % log_interval == 0:
-                    print(' Batch index {} Train Epoch: {} [{}/{} ({:.0f}%)]\t  Loss {: .2f}'.format( batch_idx,
+                    print(' Batch index {} Train Epoch: {} [{}/{} ({:.0f}%)]\t  Loss {: .5f}'.format( batch_idx,
                         epoch, batch_idx * len(data), len(data_loader.dataset), 
                         100. * batch_idx / len(data_loader),loss.item() ))
         
@@ -90,13 +75,13 @@ class chexpertNet():
                 output = self.model(data)
                 y_score.append(output)
         
-                loss = self.criterion(output, target).sum(1).mean(0)    
+                loss = self.criterion(y_score=output, y_true=target,device=self.device).sum(1).mean(0)    
                 print ("loss: {: .2f}".format (loss.item()))           
                
         y_score=torch.concat(y_score,dim=0).detach()
         y_true=torch.concat(y_true,dim=0).detach()
 
-        AUC=calculateAUC(y_score=y_score,y_true=y_true)
+        AUC=calculateAUC(y_score=y_score,y_true=y_true,disease=self.disease)
         print ("Val set : AUC : {}".format (AUC))
 
     
@@ -115,8 +100,6 @@ class chexpertNet():
         # )
         print('-'*50)
         
-
-
     def test(self,test_data):
         model=self.model
         if self.cfg.load_ckp:
@@ -126,12 +109,12 @@ class chexpertNet():
             self.eval(test_data)
     def loadModel(self,cfg):
         if cfg.model=="densenet121":
-            return backbone.DenseNetClassifier(num_classes=cfg.num_class)
+            return backbone.DenseNetClassifier(num_classes=self.num_class)
     def loadCriterion(self,cfg):
             # return AUCM_MultiLabel(num_classes=14)
             # return AUCMLoss()
-        
-        return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
+        return dataUtils.balanceCE
+        # return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
             
     def loadOptimizer(self,cfg,model):
         if cfg.train.optimizer.name=="Adam":
@@ -152,7 +135,7 @@ def compare(output,target):
     output[output<0.5]=0
     return output.eq(target.view_as(output)).sum()
 
-def calculateAUC (y_score,y_true):
+def calculateAUC (y_score,y_true,disease):
     # y_score , y_true are tensor of shape N* (num class)
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
@@ -167,9 +150,9 @@ def calculateAUC (y_score,y_true):
         else:
             score =roc_auc_score(y_true=y_true[:,i].copy(),y_score=y_score[:,i].copy()) 
             score=round(score, 2)
-            AUC.append ( ("class {}".format(disease[str(i)]),score))      
+            AUC.append ( ("class {}".format(disease[i]),score))      
     return AUC
-def compute_metrics(outputs, targets, losses):
+def compute_metrics(outputs, targets, losses,disease):
     n_classes = outputs.shape[1]
     fpr, tpr, aucs, precision, recall = {}, {}, {}, {}, {}
     for i in range(n_classes):
