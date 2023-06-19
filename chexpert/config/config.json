@@ -24,32 +24,20 @@
         "log_interval":2,
         "batch_size": 32,
         "optimizer":{
-            "name": "SGD",
+            "name": "Adam",
             "lr":1e-4,
             "weight_decay":0.0
         }
        
     },
     "mini_data":{
-        "train":5000,
-        "val":200
+        "train":100000,
+        "val":500
     },
    
     "numPatient":{
         "train":5000,
         "val":200
-    },
+    }
 
-   
-    "split_output": true,
-    "modify_gp": true,
-    "mix_precision": true,
-    "pretrained": true,
-    "full_classes": false,
-    "conditional_training": false,
-    "smooth_mode": "pos",
-   
-    "use_pixel_std": true,
-    "log_dir": "DenseNet121_2601",
-    "ckp_path": "./"
 }
