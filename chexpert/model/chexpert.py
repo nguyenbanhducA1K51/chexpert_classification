@@ -5,7 +5,7 @@ sys.path.append("../datasets")
 sys.path.append("../model")
 # from ..datasets.data import 
 # from ..model import modelUtils,backbone
-import data
+
 import modelUtils
 import backbone
 from torch.nn import functional as F
@@ -61,17 +61,14 @@ class chexpertNet():
             for batch_idx, (data, target) in enumerate(data_loader):
                 data=data.to(self.device).float()
                 target=target.to(self.device)
-                counter+=1
+
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                output=torch.sigmoid(output)
-                train_correct+=compare(output=output,target=target)
-                # print (torch.unique(target))
                 loss = self.criterion(output, target).sum(1).mean(0)  
                 # train_loss+=loss.item()
                 loss.backward()
                 self.optimizer.step()
-                self.scheduler.step()
+                # self.scheduler.step()
                 if batch_idx % log_interval == 0:
                     print(' Batch index {} Train Epoch: {} [{}/{} ({:.0f}%)]\t  Loss {: .2f}'.format( batch_idx,
                         epoch, batch_idx * len(data), len(data_loader.dataset), 
@@ -90,9 +87,7 @@ class chexpertNet():
                 target=target.to(self.device)
                 counter+=1
                 y_true.append(target)
-
                 output = self.model(data)
-                # ouput=torch.sigmoid(output)
                 y_score.append(output)
         
                 loss = self.criterion(output, target).sum(1).mean(0)    
@@ -141,10 +136,12 @@ class chexpertNet():
     def loadOptimizer(self,cfg,model):
         if cfg.train.optimizer.name=="Adam":
         
-            return optim.Adam(model.parameters(),lr=cfg.train.optimizer.lr, weight_decay=cfg.train.optimizer.weight_decay)
+            op=optim.Adam(model.parameters(),lr=cfg.train.optimizer.lr, weight_decay=cfg.train.optimizer.weight_decay)
+            scheduler = StepLR(op, step_size=30, gamma=0.1)
+            return op,scheduler
         elif cfg.train.optimizer.name=="SGD":
             
-            op= optim.SGD(model.parameters(),lr=0.1, weight_decay=0.001)
+            op= optim.SGD(model.parameters(),lr=0.005, weight_decay=0.001)
             scheduler = StepLR(op, step_size=30, gamma=0.1)
             return op, scheduler
        

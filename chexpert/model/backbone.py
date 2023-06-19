@@ -18,6 +18,7 @@ class DenseNetClassifier (nn.Module):
         self.generateClassificationLayer(in_feature=self.n_features)
     def forward (self,x):
         x=self.dense(x)
+        x= F.relu(x, inplace=True)
         class_layer=getattr(self,"cls_0")
         logits=[]
         for i in range(0,self.num_classes):
@@ -35,17 +36,7 @@ class DenseNetClassifier (nn.Module):
                 setattr(self,"cls_"+str(i),nn.Linear(in_features=in_feature,out_features=1,bias=True))
     
 
-# class DenseNetClassifier (nn.Module):
-#     def __init__ (self,num_classes):
-#         super(DenseNetClassifier, self).__init__()
-#         self.denseNet=models.densenet121(pretrained=True)
-#         self.n_features= self.denseNet.classifier.in_features
-#         self.denseNet.classifier=nn.Linear(self.n_features,14)
 
-#     def forward (self,x):
-#         x=self.denseNet(x)
-             
-#         return x
    
     
 

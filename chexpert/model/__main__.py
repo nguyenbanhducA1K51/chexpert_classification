@@ -13,7 +13,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 with open(cfg_path) as f:
     cfg = edict(json.load(f))
 
-num_class, train_loader,val_loader,test_loader=dataset.loadData(root=cfg.path.root,train_csv_path=cfg.path.train_csv_path,
+num_class, train_loader,test_loader=dataset.loadData(root=cfg.path.root,train_csv_path=cfg.path.train_csv_path,
  test_csv_path=cfg.path.test_csv_path, mini_data=cfg.mini_data, validation_split = cfg.validation_split,batch_size = cfg.train.batch_size
 )
 # get the shape of first example 
