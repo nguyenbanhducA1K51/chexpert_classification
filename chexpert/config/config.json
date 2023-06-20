@@ -9,7 +9,7 @@
     "disease":[   
 
         "No Finding",
-        "Enlarged Cardiomediastinum",
+       
         "Cardiomegaly",
         "Lung Opacity",
         "Edema",
@@ -21,7 +21,7 @@
          "Pleural Other",
          "Support Devices" 
     ],
-    "backbone": "densenet121",
+    "backbone": "convnext_t",
     "num_class":14,
     "image":{
         "image_fix_length":320,
