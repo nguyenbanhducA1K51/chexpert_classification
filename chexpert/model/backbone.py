@@ -35,7 +35,16 @@ class DenseNetClassifier (nn.Module):
                 setattr(self,"cls_"+str(i),nn.Linear(in_features=in_feature,out_features=1,bias=True))
     
 
+class ConvNextClassifier (nn.Module):
+    def __init__(self,num_classes):
+        super(ConvNextClassifier, self).__init__()
+        self.convnext=models.convnext_tiny()
+        # weights='IMAGENET1K_V1'
+        self.convnext.classifier[2]=nn.Linear(in_features=768, out_features=num_classes, bias=True)
 
+       
+    def forward(self,x):
+        return self.convnext(x)
 
 
 

@@ -49,7 +49,7 @@ class chexpertNet():
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.5).sum(1).mean(0) 
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.999).sum(1).mean(0) 
     
                 loss.backward()
                 self.optimizer.step()
@@ -75,7 +75,7 @@ class chexpertNet():
                 output = self.model(data)
                 y_score.append(output)
         
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.5).sum(1).mean(0)    
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.999).sum(1).mean(0)    
                 print ("loss: {: .5f}".format (loss.item()))           
                
         y_score=torch.concat(y_score,dim=0).detach()
@@ -110,6 +110,8 @@ class chexpertNet():
     def loadModel(self,cfg):
         if cfg.model=="densenet121":
             return backbone.DenseNetClassifier(num_classes=self.num_class)
+        elif cfg.model=="convnext_t":
+            return backbone.ConvNextClassifier(num_classes=self.num_class)
     def loadCriterion(self,cfg):
             # return AUCM_MultiLabel(num_classes=14)
             # return AUCMLoss()
@@ -128,12 +130,6 @@ class chexpertNet():
             scheduler = StepLR(op, step_size=30, gamma=0.1)
             return op, scheduler
        
-
-def compare(output,target):
-    output=torch.sigmoid(output)
-    output[output>=0.5]=1.
-    output[output<0.5]=0
-    return output.eq(target.view_as(output)).sum()
 
 def calculateAUC (y_score,y_true,disease):
     # y_score , y_true are tensor of shape N* (num class)
