@@ -19,9 +19,6 @@ from libauc.optimizers import PESG
 from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
-
-
-
 class chexpertNet():
     def __init__(self,cfg,device,num_class):
  
@@ -49,7 +46,7 @@ class chexpertNet():
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.999).sum(1).mean(0) 
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.9).sum(1).mean(0) 
     
                 loss.backward()
                 self.optimizer.step()
@@ -75,7 +72,7 @@ class chexpertNet():
                 output = self.model(data)
                 y_score.append(output)
         
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.999).sum(1).mean(0)    
+                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.9).sum(1).mean(0)    
                 print ("loss: {: .5f}".format (loss.item()))           
                
         y_score=torch.concat(y_score,dim=0).detach()
@@ -85,38 +82,56 @@ class chexpertNet():
         print ("Val set : AUC : {}".format (AUC))
 
     
-    def train_epochs (self,train_data,val_data):
+    def train_epochs (self,train_loader,val_loader):
         save_best_model = modelUtils.SaveBestModel()
         train_loss, valid_loss = [], []
         train_acc, valid_acc = [], []
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            self.train_epoch( data_loader=train_data,epoch=epoch)
+            self.train_epoch( data_loader=train_loader,epoch=epoch)
             
-            self.eval(data_loader=val_data)
-           
+            self.eval(data_loader=val_loader)          
         #     save_best_model(
         #         valid_epoch_loss, epoch, self.model, self.optimizer, self.criterion
         # )
-        print('-'*50)
-        
-    def test(self,test_data):
-        model=self.model
-        if self.cfg.load_ckp:
+        print('-'*100)
+    def progressive_train_epochs(self,train_loader,val_loader,progress_train_loader,progress_test_loader):
+        print(" Train on small size image set")
+        for epoch in range(1, self.cfg.progressive_train.epochs + 1):
             
-            model.load_state_dict(torch.load("/root/project/chexpert/model/output/best_model.pth")['model_state_dict'])
-        else:
-            self.eval(test_data)
+            print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
+            self.train_epoch( data_loader=progress_train_loader,epoch=epoch)
+            
+        
+        self.eval(data_loader=progress_test_loader)  
+        print(" Train on default size image set")
+        for epoch in range(1, self.cfg.train.epochs + 1):
+            print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
+            self.train_epoch( data_loader=train_loader,epoch=epoch)
+            
+        self.eval(data_loader=val_loader)   
+
+
     def loadModel(self,cfg):
-        if cfg.model=="densenet121":
-            return backbone.DenseNetClassifier(num_classes=self.num_class)
-        elif cfg.model=="convnext_t":
-            return backbone.ConvNextClassifier(num_classes=self.num_class)
+        if cfg.backbone.name=="densenet121":
+            if cfg.train_mode=="default":
+                return backbone.DenseNetClassifier(num_classes=self.num_class,pretrain= cfg.backbone.pretrain)
+            elif cfg.train_mode=="progressive":
+                return backbone.DenseNetClassifier(num_classes=self.num_class,pretrain=False)
+        elif cfg.backbone.name=="convnext_t":
+            if cfg.train_mode.name=="default":
+                return backbone.ConvNextClassifier(num_classes=self.num_class,pretrain=cfg.backbone.pretrain)
+            elif cfg.train_mode.name=="progressive":
+                return backbone.ConvNextClassifier(num_classes=self.num_class,pretrain=False)
+
     def loadCriterion(self,cfg):
-            # return AUCM_MultiLabel(num_classes=14)
-            # return AUCMLoss()
-        return dataUtils.balanceCE
-        # return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
+        if cfg.criterion=="bce":
+            return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
+        elif cfg.criterion=="balanceBCE":
+            return dataUtils.balanceCE
+        else:
+            raise Exception (" not support that criterion")
+       
             
     def loadOptimizer(self,cfg,model):
         if cfg.train.optimizer.name=="Adam":
@@ -129,10 +144,11 @@ class chexpertNet():
             op= optim.SGD(model.parameters(),lr=0.005, weight_decay=0.001)
             scheduler = StepLR(op, step_size=30, gamma=0.1)
             return op, scheduler
-       
+        else:
+            raise Exception (" not support that optimizer")
 
+       
 def calculateAUC (y_score,y_true,disease):
-    # y_score , y_true are tensor of shape N* (num class)
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
     y_true=y_true.cpu().detach().numpy()

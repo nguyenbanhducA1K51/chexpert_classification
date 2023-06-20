@@ -1,0 +1,4 @@
+backbone.name: {densenet121, convnext_t}
+criterion :{ bce, balanceBCE }
+optimizer :{Adam,SGD}
+

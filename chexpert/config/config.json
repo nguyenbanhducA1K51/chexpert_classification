@@ -7,33 +7,47 @@
         "test_csv_path": "/root/CheXpert-v1.0-small/valid.csv" 
     },
     "disease":[   
-
-        "No Finding",
-       
-        "Cardiomegaly",
-        "Lung Opacity",
+       "Cardiomegaly",  
         "Edema",
         "Consolidation",
-        "Pneumonia",
          "Atelectasis",
-         "Pneumothorax",
-        "Pleural Effusion",
-         "Pleural Other",
-         "Support Devices" 
+        "Pleural Effusion"
+       
     ],
-    "backbone": "convnext_t",
+    
+    "backbone": {
+           "name":"convnext_t",
+           "pretrain":"True" 
+    },
+    
     "num_class":14,
     "image":{
         "image_fix_length":320,
+        "progressive_image_size":160,
         "pixel_mean": 128.0,
         "pixel_std": 64.0
     },
-    "mode":"test",
+    "train_mode":{
+        "name":"progressive"
+         
+    },
+    
     "load_ckp":"False",
     "model":"densenet121",
-    "criterion":"default",
-    "validation_split":0.2,
+    "criterion":"balanceBCE",
     "train":{
+        "epochs": 1,
+        "progressive_epoch":1,
+        "log_interval":4,
+        "batch_size": 32,
+        "progressive_batch_size":1,
+        "optimizer":{
+            "name": "Adam",
+            "lr":1e-4,
+            "weight_decay":0.0
+        }      
+    },
+    "progressive_train":{
         "epochs": 1,
         "log_interval":4,
         "batch_size": 32,
@@ -42,10 +56,13 @@
             "lr":1e-4,
             "weight_decay":0.0
         }
-       
     },
     "mini_data":{
-        "train":10000,
+        "train":100,
+        "val":500
+    },
+    "progressive_mini_data":{
+        "train":100,
         "val":500
     }
    
