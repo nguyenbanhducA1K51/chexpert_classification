@@ -31,7 +31,7 @@
          
     },
     
-    "load_ckp":"False",
+    "load_ckp":"True",
     "criterion":"balanceBCE",
     "train":{
         "epochs": 2,
@@ -55,11 +55,11 @@
         }
     },
     "mini_data":{
-        "train":200000,
+        "train":100,
         "val":500
     },
     "progressive_mini_data":{
-        "train":200000,
+        "train":100,
         "val":500
     }
    

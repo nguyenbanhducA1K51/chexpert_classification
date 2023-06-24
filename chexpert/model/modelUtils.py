@@ -5,10 +5,7 @@ import sys
 sys.path.append("../datasets")
 sys.path.append("../model")
 from torch.nn import functional as F
-# Convnext
-
-# import data
-# import utils
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
 import backbone
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
@@ -21,7 +18,7 @@ class SaveBestModel:
     model state.
     """
     def __init__(
-        self, best_valid_AUC=float('inf')
+        self, best_valid_AUC=-float('inf')
     ):
         self.best_valid_AUC = best_valid_AUC
         
@@ -29,11 +26,13 @@ class SaveBestModel:
         self, metric, 
         epoch, model, optimizer, criterion
     ):
-        if metric.meanAUC < self.best_valid_loss:
-            self.best_valid_AUC= metric.meanAUC
+        if metric["meanAUC"] > self.best_valid_AUC:
+            self.best_valid_AUC= metric["meanAUC"]
             print(f"\nBest validation  AUC: {self.best_valid_AUC}")
             print(f"\nSaving best model for epoch: {epoch+1}\n")
             torch.save({
+                'meanAUC':metric["meanAUC"],
+                'aucs': metric['aucs'],
                 'epoch': epoch+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
@@ -42,24 +41,27 @@ class SaveBestModel:
 
 
 
-def save_plots(train_acc, valid_acc, train_loss, valid_loss):
+    # model_state_dict = checkpoint['model_state_dict']
+    # print (ckp)
+
+def save_plots(train_aucs, valid_aucs, train_loss, valid_loss):
     """
     Function to save the loss and accuracy plots to disk.
     """
     # accuracy plots
     plt.figure(figsize=(10, 7))
     plt.plot(
-        train_acc, color='green', linestyle='-', 
-        label='train accuracy'
+        train_aucs, color='green', linestyle='-', 
+        label='train AUC'
     )
     plt.plot(
         valid_acc, color='blue', linestyle='-', 
-        label='validataion accuracy'
+        label='validataion AUC'
     )
     plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
+    plt.ylabel('AUC')
     plt.legend()
-    plt.savefig('output/accuracy.png')
+    plt.savefig('output/auc.png')
     
     # loss plots
     plt.figure(figsize=(10, 7))
@@ -75,6 +77,7 @@ def save_plots(train_acc, valid_acc, train_loss, valid_loss):
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig('output/loss.png')
+
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
@@ -98,28 +101,32 @@ class Metric():
 
     def compute_metrics(self,outputs, targets, losses):
         # shape work on tensor
+        outputs=outputs.clone().cpu()
+        targets=targets.clone().cpu()
         n_classes = outputs.shape[1]
         fpr, tpr, aucs, precision, recall = {}, {}, {}, {}, {}
         for i, clas in enumerate(self.classes):
             fpr[clas], tpr[clas], _ = roc_curve(targets[:,i], outputs[:,i])
-            aucs[clas] = auc(fpr[clas], tpr[clas])
+            aucs[clas] = round (auc(fpr[clas], tpr[clas]) ,3)
             precision[clas], recall[clas], _ = precision_recall_curve(targets[:,i], outputs[:,i])
             fpr[clas], tpr[clas], precision[clas], recall[clas] = fpr[clas].tolist(), tpr[clas].tolist(), precision[clas].tolist(), recall[clas].tolist()
 
+        
         metrics = {
-                    "meanAUC": np.mean(list(aucs.values()))
+                    "meanAUC": np.mean(list(aucs.values())) ,
                     'fpr': fpr,
                 'tpr': tpr,
-                'aucs': aucs,
+                # 'aucs':  [np.round(item,2) for item in aucs],
+                'aucs':aucs,
                 'precision': precision,
                 'recall': recall,
-                'loss':loss
+                'loss':losses
                 
                 }
 
         return metrics
 class AverageMeter():
-    def __init__():
+    def __init__(self,):
         self.reset()
         
     def reset(self):
@@ -128,9 +135,8 @@ class AverageMeter():
         self.cur=0
     def update (self, item):
         self.ls.append(item)
-        self.mean= np.mean(ls)
+        self.mean= np.mean(self.ls)
         self.cur=item
-
 
 
 
