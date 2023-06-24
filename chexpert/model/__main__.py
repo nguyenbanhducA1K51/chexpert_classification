@@ -9,8 +9,8 @@ import chexpert
 from torch.nn import functional as F
 from easydict import EasyDict as edict
 cfg_path="../config/config.json" 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device="cpu"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device="cpu"
 with open(cfg_path) as f:
     cfg = edict(json.load(f))
 

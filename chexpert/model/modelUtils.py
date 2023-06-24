@@ -33,7 +33,7 @@ class SaveBestModel:
         if metric["meanAUC"] > self.best_valid_AUC:
             self.best_valid_AUC= metric["meanAUC"]
             print(f"\nBest validation  AUC: {self.best_valid_AUC}")
-            print(f"\nSaving best model for epoch: {epoch+1}\n")
+            print(f"\nSaving best model for epoch: {epoch}\n")
             torch.save({
                 'meanAUC':metric["meanAUC"],
                 'aucs': metric['aucs'],
@@ -117,7 +117,7 @@ class Metric():
 
         
         metrics = {
-                    "meanAUC": np.mean(list(aucs.values())) ,
+                    "meanAUC": round (np.mean(list(aucs.values())) ,4 ),
                     'fpr': fpr,
                 'tpr': tpr,
                 # 'aucs':  [np.round(item,2) for item in aucs],
@@ -201,7 +201,7 @@ def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
         finalString+=str(progressiveOP)+","
         finalString +=str( progressivelr)
         print (finalString)
-        file.write(finalString)
+        file.write('\n'+finalString)
 
 
 cfg_path="../config/config.json" 
@@ -211,9 +211,3 @@ cfg_path="../config/config.json"
 with open(cfg_path) as f:
     cfg = edict(json.load(f))
 
-metric={
-    "meanAUC":0,
-     "aucs" : {  "clasa":0.1,
-    "clasb":0.2}
-   }
-recordTraining(metric=metric,cfg=cfg)

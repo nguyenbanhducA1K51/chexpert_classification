@@ -106,6 +106,7 @@ class chexpertNet():
                 save_best_model(
                 metric, epoch, self.model, self.optimizer, self.criterion)
                 self.lr_scheduler.step()
+        print ("Finish default training")
         print('-'*100)
     def progressive_train_epochs(self,train_loader,val_loader,progress_train_loader,progress_test_loader):
         print(" Train on small size image set")
@@ -113,16 +114,16 @@ class chexpertNet():
             
             print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
             self.train_epoch( data_loader=progress_train_loader,epoch=epoch,model=self.model)
-            
+            self.eval(data_loader=progress_test_loader,model=self.model,epoch=epoch)  
         
-        self.eval(data_loader=progress_test_loader)  
+        
         print(" Train on default size image set")
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
             self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model)
             
-        self.eval(data_loader=val_loader,model=self.model)   
-
+            self.eval(data_loader=val_loader,model=self.model,epoch=epoch+int(self.cfg.progressive_train.epochs))   
+         print ("Finish progressive training")
 
     def loadModel(self):
         if self.cfg.backbone.name=="densenet121":

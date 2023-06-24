@@ -89,9 +89,7 @@ def loadData(cfg,mode="default"):
         
                            A.Normalize(mean=[0.5330], std=[0.0349],max_pixel_value=1.),
                             A.Lambda( name="expand dim",image=expand),
-                    
-                           
-                            
+                                         
                             ])
         # print (train_transform)
 
