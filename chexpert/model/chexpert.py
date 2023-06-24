@@ -87,7 +87,7 @@ class chexpertNet():
         save_best_model = modelUtils.SaveBestModel()
         train_loss, valid_loss = [], []
         train_acc, valid_acc = [], []
-        if self.cfg.load_ckp:
+        if self.cfg.load_ckp=="True":
             model=self.loadckpModel()
             print("Evaluate checkpoint model")
             metric=self.eval(data_loader=val_loader,model=model)  

@@ -93,6 +93,7 @@ def loadData(cfg,mode="default"):
                            
                             
                             ])
+        print (train_transform)
 
         if mini_data is not None:
             trainset=ChestDataset(disease=disease,root=root,csv_file=train_csv_path,mini_data=mini_data["train"], transform=train_transform)
