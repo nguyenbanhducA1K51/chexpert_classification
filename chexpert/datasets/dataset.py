@@ -74,26 +74,26 @@ def loadData(cfg,mode="default"):
         train_transform = A.Compose([
                             
                     
-                     A.Lambda(image=norm),
+                     A.Lambda(name="normalize rangge (0,1)",image=norm),
 #                     A.Resize(height=360,width=360),
                 A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
                      A.RandomSizedCrop(min_max_height=(300,310),height=320,width=320,w2h_ratio=1.0),
                        A.Normalize(mean=[0.5330], std=[0.0349],max_pixel_value=1.),
 
-                      A.Lambda(image=expand),
+                      A.Lambda(name="expand dim", image=expand),
                      
                             ])
         val_transform=A.Compose([
-                            A.Lambda(image=norm),  
+                            A.Lambda(name="normalize rangge (0,1)",image=norm),  
                             A.Resize(height=320,width=320),
         
                            A.Normalize(mean=[0.5330], std=[0.0349],max_pixel_value=1.),
-                            A.Lambda( image=expand),
+                            A.Lambda( name="expand dim",image=expand),
                     
                            
                             
                             ])
-        print (train_transform)
+        # print (train_transform)
 
         if mini_data is not None:
             trainset=ChestDataset(disease=disease,root=root,csv_file=train_csv_path,mini_data=mini_data["train"], transform=train_transform)

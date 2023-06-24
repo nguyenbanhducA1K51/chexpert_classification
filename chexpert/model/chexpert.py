@@ -56,7 +56,7 @@ class chexpertNet():
         
     
     
-    def eval(self,data_loader,model):
+    def eval(self,data_loader,model,epoch):
         print ("VALIDATING :")
         model.eval()
         losses= modelUtils.AverageMeter()   
@@ -80,6 +80,7 @@ class chexpertNet():
 
         metric=self.metric.compute_metrics(outputs=y_score,targets=y_true,losses=losses.mean)
         print (" Mean AUC : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))
+        modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
         return metric
         
     
@@ -98,29 +99,29 @@ class chexpertNet():
             for epoch in range(1, self.cfg.train.epochs + 1):
                 print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
                 self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model)
-                self.lr_scheduler.step()
                 
-                metric=self.eval(data_loader=val_loader,model=self.model)          
-                save_best_model(
-                metric, epoch, self.model, self.optimizer, self.criterion
+                
+                metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
 
-            )
+                save_best_model(
+                metric, epoch, self.model, self.optimizer, self.criterion)
+                self.lr_scheduler.step()
         print('-'*100)
     def progressive_train_epochs(self,train_loader,val_loader,progress_train_loader,progress_test_loader):
         print(" Train on small size image set")
         for epoch in range(1, self.cfg.progressive_train.epochs + 1):
             
             print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
-            self.train_epoch( data_loader=progress_train_loader,epoch=epoch)
+            self.train_epoch( data_loader=progress_train_loader,epoch=epoch,model=self.model)
             
         
         self.eval(data_loader=progress_test_loader)  
         print(" Train on default size image set")
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            self.train_epoch( data_loader=train_loader,epoch=epoch)
+            self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model)
             
-        self.eval(data_loader=val_loader)   
+        self.eval(data_loader=val_loader,model=self.model)   
 
 
     def loadModel(self):

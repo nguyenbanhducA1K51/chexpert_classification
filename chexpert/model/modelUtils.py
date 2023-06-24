@@ -8,7 +8,11 @@ from torch.nn import functional as F
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
 import backbone
 import matplotlib.pyplot as plt
+import os
+import glob
 plt.style.use('ggplot')
+from easydict import EasyDict as edict
+import json
 
 class SaveBestModel:
     # this class only work for each training
@@ -139,4 +143,77 @@ class AverageMeter():
         self.cur=item
 
 
+from datetime import datetime
+def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
+    
+    now = datetime.now()
+    
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
+    project_root=cfg.path.project_path
+    filePath= project_root+"/model/output/recordTraining.txt"
+  
+    with open(filePath, "a") as file:
+    # Append some text to the file
+        epochIndex=epoch
+        meanAUC=metric["meanAUC"]
+        listAUC= list(metric["aucs"].values())
+        
+        criterion=cfg.criterion
+        if cfg.criterion=="balanceBCE":
+            beta=cfg.balanceBCE.beta 
+        else:
+            beta=NA
+        sample=cfg.mini_data.train
+        totalEpoch=cfg.train.epochs
+        op=cfg.train.optimizer.name
+        lr=cfg.train.optimizer.lr
+        if cfg.train_mode.name=="default":
+            progressiveSample="NA"
+            totalProgressiveEpoch="NA"
+            progressiveOP="NA"
+            progressivelr="NA"
+        else:
+            progressiveSample=cfg.progressive_mini_data.train
+            totalProgressiveEpoch=cfg.progressive_train.epochs
+            progressiveOP=cfg.progressive_train.optimizer.name
+            progressivelr=cfg.progressive_train.optimizer.lr
+        
+        finalString=""
+        finalString+=dt_string+","
+        for auc in listAUC:
+            finalString+=str(auc)+","
+
+        finalString+=str(meanAUC)+","
+        finalString+=str(cfg.train_mode.name)+","
+        finalString+=str(epochIndex)+","
+        finalString+=str(sample)+","   
+        finalString+=str(totalEpoch)+","
+        
+        finalString+=str(op)+","
+        finalString +=str(lr)+","
+        finalString+=str(criterion)+","
+        finalString+=str(beta)+","
+
+        finalString+=str(progressiveSample)+","   
+        finalString+=str(totalProgressiveEpoch)+","
+        
+        finalString+=str(progressiveOP)+","
+        finalString +=str( progressivelr)
+        print (finalString)
+        file.write(finalString)
+
+
+cfg_path="../config/config.json" 
+# format: time,class1, ..classn, meanAUC, trainmode,numsample,epochindex,totalEpoch, criter,beta op,lr  
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+with open(cfg_path) as f:
+    cfg = edict(json.load(f))
+
+metric={
+    "meanAUC":0,
+     "aucs" : {  "clasa":0.1,
+    "clasb":0.2}
+   }
+recordTraining(metric=metric,cfg=cfg)
