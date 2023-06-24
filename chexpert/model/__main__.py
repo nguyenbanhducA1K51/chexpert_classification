@@ -21,7 +21,6 @@ num_class, train_loader,test_loader=dataset.loadData(cfg, mode="default")
 # print (train_loader.dataset[0][0].shape)
 
 model=chexpert.chexpertNet(cfg=cfg,device=device,num_class=num_class)
-print (cfg.train_mode)
 if cfg.train_mode.name=="default":
     model.train_epochs(train_loader=train_loader,val_loader=test_loader)
 elif cfg.train_mode.name=="progressive":
