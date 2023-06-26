@@ -4,12 +4,12 @@ from torchvision import datasets, models, transforms
 import torch.nn.functional as F
 import sys
 sys.path.append("../model")
-import modelUtils
+from model import modelUtils
 
 class DenseNetClassifier (nn.Module):
-    def __init__ (self,num_classes):
+    def __init__ (self,num_classes,pretrain=True):
         super(DenseNetClassifier, self).__init__()
-        denseNet=models.densenet121(pretrained=True)
+        denseNet=models.densenet121(pretrained=pretrain)
         self.dense=denseNet.features  
         self.pool=F.adaptive_avg_pool2d
         self.n_features= denseNet.classifier.in_features

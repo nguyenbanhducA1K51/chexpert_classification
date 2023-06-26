@@ -7,7 +7,7 @@ from PIL import Image
 import random 
 import sys
 sys.path.append("../datasets")
-import dataUtils
+from datasets import dataUtils
 import torch
 import numpy as np
 import cv2
@@ -110,18 +110,18 @@ def loadData(cfg,mode="default"):
 
         return numclass,train_loader,test_loader
 
-cfg_path="../config/config.json" 
-with open(cfg_path) as f:
-    cfg = edict(json.load(f))
-numclass,train_loader,test_loader=loadData(cfg=cfg)
-# path= "/root/CheXpert-v1.0-small/train/patient00002/study2/view1_frontal.jpg"
+# cfg_path="../config/config.json" 
+# with open(cfg_path) as f:
+#     cfg = edict(json.load(f))
+# numclass,train_loader,test_loader=loadData(cfg=cfg)
+# # path= "/root/CheXpert-v1.0-small/train/patient00002/study2/view1_frontal.jpg"
 
-# print ("shape image {}".format(train_loader.dataset[0][0].shape) )
+# # print ("shape image {}".format(train_loader.dataset[0][0].shape) )
 
-# print ("shape image {}".format(train_loader.dataset[0][1].shape) )
+# # print ("shape image {}".format(train_loader.dataset[0][1].shape) )
 
-x,y= next(iter(train_loader))
-print ("x ,y {} {}".format(x.size(),y.shape))
+# x,y= next(iter(train_loader))
+# print ("x ,y {} {}".format(x.size(),y.shape))
 
 
 

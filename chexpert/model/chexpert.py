@@ -1,13 +1,14 @@
+
 import sys
 import torch
 import json,os
 sys.path.append("../datasets")
 sys.path.append("../model")
-# from ..datasets.data import 
-# from ..model import modelUtils,backbone
-import dataUtils
-import modelUtils
-import backbone
+from datasets import dataUtils
+from model import modelUtils,backbone
+# import dataUtils
+# import modelUtils
+# import backbone
 from torch.nn import functional as F
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
 from torch.optim import Adam
@@ -19,16 +20,18 @@ from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 class chexpertNet():
-    def __init__(self,cfg,device,num_class):
+    def __init__(self,cfg,device):
  
         self.cfg=cfg
         self.disease=cfg.disease
         self.device=device
-        self.num_class=num_class
+        self.num_class=len(cfg.disease)
         self.model=self.loadModel().to(device)
         self.optimizer, self.lr_scheduler=self.loadOptimizer(self.model)
         self.criterion=self.loadCriterion()
         self.metric=modelUtils.Metric(self.disease)
+       
+
        
         
         
@@ -44,7 +47,7 @@ class chexpertNet():
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.99).sum(1).mean(0) 
+                loss = self.criterion(output=output, target=target).sum(1).mean(0) 
     
                 loss.backward()
                 self.optimizer.step()
@@ -60,25 +63,25 @@ class chexpertNet():
         print ("VALIDATING :")
         model.eval()
         losses= modelUtils.AverageMeter()   
-        y_score=[]
-        y_true=[]
+        outputs=[]
+        targets=[]
         with torch.no_grad():
             for data, target in data_loader:
                 data=data.to(self.device).float()
                 target=target.to(self.device)
                
-                y_true.append(target)
+                targets.append(target)
                 output = self.model(data)
-                y_score.append(output)
+                outputs.append(output)
         
-                loss = self.criterion(y_score=output, y_true=target,device=self.device,beta=0.99).sum(1).mean(0)    
+                loss = self.criterion(output=output, target=target).sum(1).mean(0)    
                 print ("loss: {: .5f}".format (loss.item()))   
                 losses.update(loss.item())        
                
-        y_score=torch.concat(y_score,dim=0).detach()
-        y_true=torch.concat(y_true,dim=0).detach()
+        outputs=torch.concat(outputs,dim=0).detach()
+        targets=torch.concat(targets,dim=0).detach()
 
-        metric=self.metric.compute_metrics(outputs=y_score,targets=y_true,losses=losses.mean)
+        metric=self.metric.compute_metrics(outputs=outputs,targets=targets,losses=losses.mean)
         print (" Mean AUC : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))
         modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
         return metric
@@ -86,8 +89,6 @@ class chexpertNet():
     
     def train_epochs (self,train_loader,val_loader):
         save_best_model = modelUtils.SaveBestModel()
-        train_loss, valid_loss = [], []
-        train_acc, valid_acc = [], []
         if self.cfg.load_ckp=="True":
             model=self.loadckpModel()
             print("Evaluate checkpoint model")
@@ -115,21 +116,24 @@ class chexpertNet():
             print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
             self.train_epoch( data_loader=progress_train_loader,epoch=epoch,model=self.model)
             self.eval(data_loader=progress_test_loader,model=self.model,epoch=epoch)  
+            self.lr_scheduler.step()
         
         
         print(" Train on default size image set")
+        # refresh lr_scheduler
+        self.optimizer,self.lr_scheduler=self.loadOptimizer(self.model)
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model)
-            
+            self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model)   
             self.eval(data_loader=val_loader,model=self.model,epoch=epoch+int(self.cfg.progressive_train.epochs))   
-         print ("Finish progressive training")
+            self.lr_scheduler
+        print ("Finish progressive training")
 
     def loadModel(self):
-        if self.cfg.backbone.name=="densenet121":
-            if self.cfg.train_mode=="default":
+        if self.cfg.backbone.name=="densenet121":    
+            if self.cfg.train_mode.name=="default":
                 return backbone.DenseNetClassifier(num_classes=self.num_class,pretrain= self.cfg.backbone.pretrain)
-            elif self.cfg.train_mode=="progressive":
+            elif self.cfg.train_mode.name=="progressive":
                 return backbone.DenseNetClassifier(num_classes=self.num_class,pretrain=self.cfg.backbone.pretrain)
         elif self.cfg.backbone.name=="convnext_t":
             if self.cfg.train_mode.name=="default":
@@ -142,13 +146,11 @@ class chexpertNet():
         model=self.loadModel()
         model.load_state_dict(model_state_dict)
         return model
-
-        # print (ckp)
     def loadCriterion(self):
         if self.cfg.criterion=="bce":
-            return nn.BCEWithLogitsLoss(reduction='none').to(self.device)
+            return nn.BCEWithLogitsLoss(reduction='none')
         elif self.cfg.criterion=="balanceBCE":
-            return dataUtils.balanceCE
+            return dataUtils.balanceBCE(beta=self.cfg.balanceBCE.beta,device=self.device)
         else:
             raise Exception (" not support that criterion")
        
@@ -162,7 +164,7 @@ class chexpertNet():
         elif self.cfg.train.optimizer.name=="SGD":
             
             op= optim.SGD(model.parameters(),lr=0.005, weight_decay=0.001)
-            scheduler = StepLR(op, step_size=1, gamma=0.1,verbose=True)
+            scheduler = StepLR(op, step_size=2, gamma=0.1,verbose=True)
             return op, scheduler
         else:
             raise Exception (" not support that optimizer")

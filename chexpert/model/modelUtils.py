@@ -6,7 +6,7 @@ sys.path.append("../datasets")
 sys.path.append("../model")
 from torch.nn import functional as F
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
-import backbone
+from model import backbone
 import matplotlib.pyplot as plt
 import os
 import glob
@@ -30,6 +30,10 @@ class SaveBestModel:
         self, metric, 
         epoch, model, optimizer, criterion
     ):
+        # print ("name {}".format(__name__))
+        # print ("abspath {}".format (os.path.abspath(__name__)))
+        abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
+        # print (abspath)
         if metric["meanAUC"] > self.best_valid_AUC:
             self.best_valid_AUC= metric["meanAUC"]
             print(f"\nBest validation  AUC: {self.best_valid_AUC}")
@@ -41,12 +45,7 @@ class SaveBestModel:
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': criterion,
-                }, 'output/best_model.pth')
-
-
-
-    # model_state_dict = checkpoint['model_state_dict']
-    # print (ckp)
+                }, abspath)
 
 def save_plots(train_aucs, valid_aucs, train_loss, valid_loss):
     """
@@ -151,7 +150,7 @@ def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
     project_root=cfg.path.project_path
-    filePath= project_root+"/model/output/recordTraining.txt"
+    filePath= project_root+"/model/output/recordTraining.csv"
   
     with open(filePath, "a") as file:
     # Append some text to the file
@@ -185,6 +184,7 @@ def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
             finalString+=str(auc)+","
 
         finalString+=str(meanAUC)+","
+        finalString+=str(cfg.backbone.name)+","
         finalString+=str(cfg.train_mode.name)+","
         finalString+=str(epochIndex)+","
         finalString+=str(sample)+","   
@@ -199,15 +199,9 @@ def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
         finalString+=str(totalProgressiveEpoch)+","
         
         finalString+=str(progressiveOP)+","
-        finalString +=str( progressivelr)
+        finalString +=str( progressivelr)+","
+        finalString +=str( cfg.image.progressive_image_size)
         print (finalString)
         file.write('\n'+finalString)
 
-
-cfg_path="../config/config.json" 
-# format: time,class1, ..classn, meanAUC, trainmode,numsample,epochindex,totalEpoch, criter,beta op,lr  
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-with open(cfg_path) as f:
-    cfg = edict(json.load(f))
 
