@@ -148,9 +148,7 @@ def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
     now = datetime.now()
     
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-
-    project_root=cfg.path.project_path
-    filePath= project_root+"/model/output/recordTraining.csv"
+    filePath=os.path.dirname(os.path.abspath(__name__))+"/model/output/recordTraining.csv"
   
     with open(filePath, "a") as file:
     # Append some text to the file

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from torch.nn import functional as F
 import torch
 import torch.nn as nn
+import warnings
+warnings.filterwarnings("ignore")
 class balanceBCE(nn.Module):
     def __init__(self,beta,device):
         super(balanceBCE,self).__init__()

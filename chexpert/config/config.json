@@ -2,19 +2,10 @@
     "path":{
         "project_path":"/root/project/chexpert",
         "root":"/root",
-        "train_image_path": "/root/CheXpert-v1.0-small/train",
-        "test_image_path": "/root/CheXpert-v1.0-small/valid",
         "train_csv_path": "/root/CheXpert-v1.0-small/train.csv",
         "test_csv_path": "/root/CheXpert-v1.0-small/valid.csv" 
     },
-    "disease":[   
-       "Cardiomegaly",  
-        "Edema",
-        "Consolidation",
-         "Atelectasis",
-        "Pleural Effusion"
-       
-    ],
+    "class_idx":[ 7,10,11,13,15 ],
     
     "backbone": {
            "name":"densenet121",
@@ -28,7 +19,7 @@
     
     },
     "train_mode":{
-        "name":"progressive"
+        "name":"default"
          
     },
     
@@ -45,7 +36,9 @@
             "name": "Adam",
             "lr":1e-4,
             "weight_decay":0.0
-        }      
+            
+        }    
+
     },
     "progressive_train":{
         "epochs": 1,
@@ -58,12 +51,15 @@
         }
     },
     "mini_data":{
-        "train":100000,
+        "train":100,
         "val":500
     },
     "progressive_mini_data":{
         "train":100000,
         "val":500
+    },
+    "tta":{
+        "usetta":"True"
     }
    
 
