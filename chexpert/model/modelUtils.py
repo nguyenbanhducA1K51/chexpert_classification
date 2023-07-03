@@ -13,7 +13,9 @@ import glob
 plt.style.use('ggplot')
 from easydict import EasyDict as edict
 import json
-
+from datetime import datetime
+from datasets.common import csv_index
+import math 
 class SaveBestModel:
     # this class only work for each training
     """
@@ -22,64 +24,105 @@ class SaveBestModel:
     model state.
     """
     def __init__(
-        self, best_valid_AUC=-float('inf')
+        self, best_valid_AUC=-float('inf'),cfg
     ):
         self.best_valid_AUC = best_valid_AUC
+        self.cfg=cfg
         
     def __call__(
         self, metric, 
         epoch, model, optimizer, criterion
     ):
-        # print ("name {}".format(__name__))
-        # print ("abspath {}".format (os.path.abspath(__name__)))
-        abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
-        # print (abspath)
-        if metric["meanAUC"] > self.best_valid_AUC:
-            self.best_valid_AUC= metric["meanAUC"]
-            print(f"\nBest validation  AUC: {self.best_valid_AUC}")
-            print(f"\nSaving best model for epoch: {epoch}\n")
-            torch.save({
-                'meanAUC':metric["meanAUC"],
-                'aucs': metric['aucs'],
-                'epoch': epoch+1,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': criterion,
-                }, abspath)
+        if int(cfg.mini_data)>=100000:
 
-def save_plots(train_aucs, valid_aucs, train_loss, valid_loss):
+            abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
+            if metric["meanAUC"] > self.best_valid_AUC:
+                self.best_valid_AUC= metric["meanAUC"]
+                print(f"\nBest validation  AUC: {self.best_valid_AUC}")
+                print(f"\nSaving best model for epoch: {epoch}\n")
+                torch.save({
+                    'meanAUC':metric["meanAUC"],
+                    'aucs': metric['aucs'],
+                    'epoch': epoch+1,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': criterion,
+                    }, abspath)
+            
+
+def save_plots(cfg,train_metric, val_metric):
     """
     Function to save the loss and accuracy plots to disk.
     """
-    # accuracy plots
-    plt.figure(figsize=(10, 7))
-    plt.plot(
-        train_aucs, color='green', linestyle='-', 
-        label='train AUC'
-    )
-    plt.plot(
-        valid_acc, color='blue', linestyle='-', 
-        label='validataion AUC'
-    )
-    plt.xlabel('Epochs')
-    plt.ylabel('AUC')
-    plt.legend()
-    plt.savefig('output/auc.png')
-    
-    # loss plots
-    plt.figure(figsize=(10, 7))
-    plt.plot(
-        train_loss, color='orange', linestyle='-', 
-        label='train loss'
-    )
-    plt.plot(
-        valid_loss, color='red', linestyle='-', 
-        label='validataion loss'
-    )
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig('output/loss.png')
+    # if int(cfg.mini_data)>=100000:
+        classlabel=[]
+        for x in cfg.class_idx:
+            classlabel.append(csv_index[str(x)])
+        now = datetime.now() 
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        parent_dir="/root/repo/Chexpert/chexpert/model/output/learning_analysis"
+        folder=os.path.join(parent_dir,dt_string)
+        os.mkdir(folder)
+        train_classAUC=[]
+        val_classAUC=[]
+
+        train_meanAUC=[]
+        val_meanAUC=[]
+
+        train_loss=[]
+        val_loss=[]
+        for item in train_metric :
+            train_classAUC.append(item["aucs"])
+            train_meanAUC.append(item["meanAUC"])
+            train_loss.append(item["loss"])
+        for item in val_metric :
+            val_classAUC.append(item["aucs"])
+            val_meanAUC.append(item["meanAUC"])
+            val_loss.append(item["loss"])
+
+        train_classAUC=np.array(train_classAUC)
+        val_classAUC=np.array(val_classAUC)
+
+        train_meanAUC=np.array(train_meanAUC)
+        val_meanAUC=np.array(val_meanAUC)
+
+        train_loss=np.array(train_loss)
+        val_loss=np.array(val_loss)
+        row=int(math.sqrt(len(classlabel)+2))
+        plt.figure(figsize=(20, 15))
+        fig,ax=plt.subplots(nrows=row+1, ncols=row+1)
+        stop_plot=False
+        counter=0
+        ax[0,0].plot(train_meanAUC,label="Mean train AUC")
+        ax[0,0].plot(val_meanAUC,label="Mean validation AUC")
+        ax[0,0].set(xlabel="epoch", ylabel="AUC")
+        ax[0,0].set_title("Mean AUC")
+        ax[0,1].plot(train_loss,label="Mean train loss")
+        ax[0,1].plot(val_loss,label="Mean validation loss")
+        ax[0,1].set(xlabel="epoch", ylabel="loss")
+        ax[0,1].set_title("Mean loss")
+        for i in range(row+1):
+        if stop_plot:
+            break
+        for j in range (row+1):
+            if i==0 and j==0:
+                continue
+            if i==0 and j==1:
+                continue
+            if stop_plot:
+                break
+            if counter>=len(classlabel):
+                stop_plot=True
+                break
+            
+            ax[i,j].plot(train_classAUC[:,counter],color='green', linestyle='-')
+            ax[i,j].set(xlabel="epoch", ylabel="auc")
+            ax[i,j].set_title(classlabel[counter])
+            counter +=1
+
+        fig.tight_layout()
+        plt.show()
+        fig.savefig(os.path.join(path,"visualize.png"))
 
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)
@@ -102,7 +145,7 @@ class Metric():
     def __init__(self,classes):
         self.classes=classes
 
-    def compute_metrics(self,outputs, targets, losses):
+    def compute_metrics(self,outputs, targets, losses=None):
         # shape work on tensor
         outputs=outputs.clone().cpu()
         targets=targets.clone().cpu()
@@ -112,9 +155,7 @@ class Metric():
             fpr[clas], tpr[clas], _ = roc_curve(targets[:,i], outputs[:,i])
             aucs[clas] = round (auc(fpr[clas], tpr[clas]) ,3)
             precision[clas], recall[clas], _ = precision_recall_curve(targets[:,i], outputs[:,i])
-            fpr[clas], tpr[clas], precision[clas], recall[clas] = fpr[clas].tolist(), tpr[clas].tolist(), precision[clas].tolist(), recall[clas].tolist()
-
-        
+            fpr[clas], tpr[clas], precision[clas], recall[clas] = fpr[clas].tolist(), tpr[clas].tolist(), precision[clas].tolist(), recall[clas].tolist()       
         metrics = {
                     "meanAUC": round (np.mean(list(aucs.values())) ,4 ),
                     'fpr': fpr,
@@ -141,65 +182,66 @@ class AverageMeter():
         self.mean= np.mean(self.ls)
         self.cur=item
 
-
-from datetime import datetime
 def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
     
     now = datetime.now()
     
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     filePath=os.path.dirname(os.path.abspath(__name__))+"/model/output/recordTraining.csv"
-  
-    with open(filePath, "a") as file:
-    # Append some text to the file
-        epochIndex=epoch
-        meanAUC=metric["meanAUC"]
-        listAUC= list(metric["aucs"].values())
-        
-        criterion=cfg.criterion
-        if cfg.criterion=="balanceBCE":
-            beta=cfg.balanceBCE.beta 
-        else:
-            beta=NA
-        sample=cfg.mini_data.train
-        totalEpoch=cfg.train.epochs
-        op=cfg.train.optimizer.name
-        lr=cfg.train.optimizer.lr
-        if cfg.train_mode.name=="default":
-            progressiveSample="NA"
-            totalProgressiveEpoch="NA"
-            progressiveOP="NA"
-            progressivelr="NA"
-        else:
-            progressiveSample=cfg.progressive_mini_data.train
-            totalProgressiveEpoch=cfg.progressive_train.epochs
-            progressiveOP=cfg.progressive_train.optimizer.name
-            progressivelr=cfg.progressive_train.optimizer.lr
-        
-        finalString=""
-        finalString+=dt_string+","
-        for auc in listAUC:
-            finalString+=str(auc)+","
+    if int(cfg.mini_data.train)>=100000:
+        with open(filePath, "a") as file:
+        # Append some text to the file
+            epochIndex=epoch
+            meanAUC=metric["meanAUC"]
+            listAUC= list(metric["aucs"].values())
+            
+            criterion=cfg.criterion
+            if cfg.criterion=="balanceBCE":
+                beta=cfg.balanceBCE.beta 
+            else:
+                beta=NA
+            sample=cfg.mini_data.train
+            totalEpoch=cfg.train.epochs
+            op=cfg.train.optimizer.name
+            lr=cfg.train.optimizer.lr
+            if cfg.train_mode.name=="default":
+                progressiveSample="NA"
+                totalProgressiveEpoch="NA"
+                progressiveOP="NA"
+                progressivelr="NA"
+            else:
+                progressiveSample=cfg.progressive_mini_data.train
+                totalProgressiveEpoch=cfg.progressive_train.epochs
+                progressiveOP=cfg.progressive_train.optimizer.name
+                progressivelr=cfg.progressive_train.optimizer.lr
+            
+            finalString=""
+            finalString+=dt_string+","
+            for auc in listAUC:
+                finalString+=str(auc)+","
 
-        finalString+=str(meanAUC)+","
-        finalString+=str(cfg.backbone.name)+","
-        finalString+=str(cfg.train_mode.name)+","
-        finalString+=str(epochIndex)+","
-        finalString+=str(sample)+","   
-        finalString+=str(totalEpoch)+","
-        
-        finalString+=str(op)+","
-        finalString +=str(lr)+","
-        finalString+=str(criterion)+","
-        finalString+=str(beta)+","
+            finalString+=str(meanAUC)+","
+            finalString+=str(cfg.backbone.name)+","
+            finalString+=str(cfg.train_mode.name)+","
+            finalString+=str(epochIndex)+","
+            finalString+=str(sample)+","   
+            finalString+=str(totalEpoch)+","
+            
+            finalString+=str(op)+","
+            finalString +=str(lr)+","
+            finalString+=str(criterion)+","
+            finalString+=str(beta)+","
 
-        finalString+=str(progressiveSample)+","   
-        finalString+=str(totalProgressiveEpoch)+","
-        
-        finalString+=str(progressiveOP)+","
-        finalString +=str( progressivelr)+","
-        finalString +=str( cfg.image.progressive_image_size)
-        print (finalString)
-        file.write('\n'+finalString)
+            finalString+=str(progressiveSample)+","   
+            finalString+=str(totalProgressiveEpoch)+","
+            
+            finalString+=str(progressiveOP)+","
+            finalString +=str( progressivelr)+","
+            finalString +=str( cfg.image.progressive_image_size)+","
+            finalString+=str(cfg.tta.usetta)+","
+            finalString+=str(cfg.tta.times)
+
+            # print (finalString)
+            file.write('\n'+finalString)
 
 

@@ -16,8 +16,3 @@ csv_index={
     "18": "Support Devices"
 }
 
-#  "Cardiomegaly",  
-#         "Edema",
-#         "Consolidation",
-#          "Atelectasis",
-#         "Pleural Effusion"
