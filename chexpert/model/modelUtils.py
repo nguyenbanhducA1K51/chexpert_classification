@@ -33,6 +33,7 @@ class SaveBestModel:
 
             abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
             if metric["meanAUC"] > self.best_auc:
+                write_json(key=best_auc,val=metric["meanAUC"],filepath=path)
                 self.best_auc= metric["meanAUC"]
                 print(f"\nBest validation  AUC: {self.best_auc}")
                 print(f"\nSaving best model for epoch: {epoch}\n")
@@ -124,7 +125,12 @@ def save_plots(cfg,train_metrics, val_metrics):
         fig.tight_layout()
         plt.show()
         fig.savefig(path)
-
+def write_json(key,val,filepath):
+    with open(filepath, 'r') as file:
+        data = json.load(file)
+    data[key] = val
+    with open(filepath, 'w') as file:
+    json.dump(data, file, indent=4)
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
@@ -183,15 +189,12 @@ class AverageMeter():
         self.mean= np.mean(self.ls)
         self.cur=item
 
-def recordTraining(epoch=0,cfg=None, metric=None,transform=None):
-    
-    now = datetime.now()
-    
+def recordTraining(epoch=0,cfg=None, metric=None,transform=None):  
+    now = datetime.now()   
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     filePath=os.path.dirname(os.path.abspath(__name__))+"/model/output/recordTraining.csv"
     if int(cfg.mini_data.train)>=100000:
         with open(filePath, "a") as file:
-        # Append some text to the file
             epochIndex=epoch
             meanAUC=metric["meanAUC"]
             listAUC= list(metric["aucs"].values())
