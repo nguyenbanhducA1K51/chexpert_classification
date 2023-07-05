@@ -2,84 +2,86 @@ import torch.nn  as nn
 import numpy as np
 import torch
 import sys
-sys.path.append("../datasets")
-sys.path.append("../model")
+sys.path.append("../data")
+
 from torch.nn import functional as F
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
-from model import backbone
+from . import backbone
 import matplotlib.pyplot as plt
 import os
 import glob
-plt.style.use('ggplot')
 from easydict import EasyDict as edict
 import json
 from datetime import datetime
-from datasets.common import csv_index
+from data.common import csv_index
 import math 
-class SaveBestModel:
-    # this class only work for each training
-    """
-    Class to save the best model while training. If the current epoch's 
-    validation loss is less than the previous least less, then save the
-    model state.
-    """
+path= os.path.dirname(os.path.abspath(__name__)) +"/model/output/record.json"
+with open(path) as f:
+    record = edict(json.load(f))
+class SaveBestModel: 
     def __init__(
-        self, cfg,best_valid_AUC=-float('inf'),
+        self, cfg
     ):
-        self.best_valid_AUC = best_valid_AUC
+        self.best_auc=record.best_auc
         self.cfg=cfg
         
     def __call__(
         self, metric, 
         epoch, model, optimizer, criterion
     ):
-        if int(cfg.mini_data)>=100000:
+        # if int(cfg.mini_data)>=100000:
 
             abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
-            if metric["meanAUC"] > self.best_valid_AUC:
-                self.best_valid_AUC= metric["meanAUC"]
-                print(f"\nBest validation  AUC: {self.best_valid_AUC}")
+            if metric["meanAUC"] > self.best_auc:
+                self.best_auc= metric["meanAUC"]
+                print(f"\nBest validation  AUC: {self.best_auc}")
                 print(f"\nSaving best model for epoch: {epoch}\n")
                 torch.save({
                     'meanAUC':metric["meanAUC"],
                     'aucs': metric['aucs'],
-                    'epoch': epoch+1,
+                    'epoch': epoch,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': criterion,
+                  
                     }, abspath)
             
 
-def save_plots(cfg,train_metric, val_metric):
+def save_plots(cfg,train_metrics, val_metrics):
   
     # if int(cfg.mini_data)>=100000:
         classlabel=[]
         for x in cfg.class_idx:
             classlabel.append(csv_index[str(x)])
         now = datetime.now() 
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        parent_dir="/root/repo/Chexpert/chexpert/model/output/learning_analysis"
-        folder=os.path.join(parent_dir,dt_string)
-        os.mkdir(folder)
+        dt_string = now.strftime("%d-%m-%Y-%H:%M:%S.png")
+        path=os.path.dirname(os.path.abspath(__name__))+"/model/output/"+dt_string     
         train_classAUC=[]
         val_classAUC=[]
-
         train_meanAUC=[]
         val_meanAUC=[]
-
         train_loss=[]
         val_loss=[]
-        for item in train_metric :
-            train_classAUC.append(item["aucs"])
+
+        train_aucs=[]
+        val_aucs=[]
+        for label in classlabel:
+            train_label_list=[]
+            val_label_list=[]
+            for item in train_metrics :
+                train_label_list.append((item["aucs"][label]))
+            for item in val_metrics :
+                val_label_list.append((item["aucs"][label]))
+            train_aucs.append(train_label_list)
+            val_aucs.append(val_label_list)
+        train_aucs=np.array(train_aucs).reshape(-1,len(classlabel))
+        val_aucs=np.array(val_aucs).reshape(-1,len(classlabel))
+
+        for item in train_metrics :
             train_meanAUC.append(item["meanAUC"])
             train_loss.append(item["loss"])
-        for item in val_metric :
-            val_classAUC.append(item["aucs"])
+        for item in val_metrics :
             val_meanAUC.append(item["meanAUC"])
             val_loss.append(item["loss"])
-
-        train_classAUC=np.array(train_classAUC).reshape(-1,len(classlabel))
-        val_classAUC=np.array(val_classAUC).reshape(-1,len(classlabel))
 
         train_meanAUC=np.array(train_meanAUC)
         val_meanAUC=np.array(val_meanAUC)
@@ -87,8 +89,7 @@ def save_plots(cfg,train_metric, val_metric):
         train_loss=np.array(train_loss)
         val_loss=np.array(val_loss)
         row=int(math.sqrt(len(classlabel)+2))
-        # plt.figure(figsize=(20, 15))
-        fig,ax=plt.subplots(nrows=row+1, ncols=row+1,figsize=15)
+        fig,ax=plt.subplots(row+1,row+1,figsize=(15, 15))
         stop_plot=False
         counter=0
         ax[0,0].plot(train_meanAUC,label="Mean train AUC")
@@ -114,13 +115,12 @@ def save_plots(cfg,train_metric, val_metric):
                 if counter>=len(classlabel):
                     stop_plot=True
                     break             
-                ax[i,j].plot(train_classAUC[:,counter],color='green', linestyle='-', marker="o",label="train auc")
-                ax[i,j].plot(val_classAUC[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
+                ax[i,j].plot(train_aucs[:,counter],color='green', linestyle='-', marker="o",label="train auc")
+                ax[i,j].plot(val_aucs[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
                 ax[i,j].set(xlabel="epoch", ylabel="auc")
                 ax[i,j].set_title(classlabel[counter])
                 ax[i,j].legend()
                 counter +=1
-
         fig.tight_layout()
         plt.show()
         fig.savefig(path)

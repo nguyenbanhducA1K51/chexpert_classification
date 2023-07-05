@@ -30,7 +30,7 @@ class chexpertNet():
         self.model=self.loadModel().to(device)
         self.optimizer, self.lr_scheduler=self.loadOptimizer(self.model)
         self.criterion=self.loadCriterion()
-        self.metric=modelUtils.Metrics(self.classes)   
+        self.metric=modelUtils.Metric(self.classes)   
         self.train_loader,self.test_loader= dataset.loadData(cfg=cfg)      
         self.prog_optimizer,self.prog_lr_scheduler=self.loadOptimizer(self.model,mode="progressive")
         self.progress_train_loader,self.progress_test_loader=dataset.loadData(cfg=cfg,mode="progressive")   
