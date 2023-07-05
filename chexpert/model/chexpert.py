@@ -2,13 +2,13 @@
 import sys
 import torch
 import json,os
-sys.path.append("../datasets")
+sys.path.append("../data")
 sys.path.append("../model")
-from datasets import dataUtils, dataset
-from datasets.common import csv_index
+from data import dataUtils, dataset
+from data.common import csv_index
 from . import modelUtils,backbone
 from torch.nn import functional as F
-from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
+
 from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
@@ -30,7 +30,7 @@ class chexpertNet():
         self.model=self.loadModel().to(device)
         self.optimizer, self.lr_scheduler=self.loadOptimizer(self.model)
         self.criterion=self.loadCriterion()
-        self.metric=modelUtils.Metric(self.classes)   
+        self.metric=modelUtils.Metrics(self.classes)   
         self.train_loader,self.test_loader= dataset.loadData(cfg=cfg)      
         self.prog_optimizer,self.prog_lr_scheduler=self.loadOptimizer(self.model,mode="progressive")
         self.progress_train_loader,self.progress_test_loader=dataset.loadData(cfg=cfg,mode="progressive")   
@@ -61,6 +61,7 @@ class chexpertNet():
             outputs=torch.concat(outputs,dim=0).detach()
             targets=torch.concat(targets,dim=0).detach()
             metric=self.metric.compute_metrics(outputs=outputs,targets=targets,losses=losses.mean)
+        
             return metric
 
     def eval(self,data_loader,model,epoch):
@@ -121,28 +122,33 @@ class chexpertNet():
         modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
         return metric                           
     def train_epochs (self):    
+        train_metrics=[]
+        val_metrics=[]
         if self.cfg.load_ckp=="True":
             model=self.loadckpModel()
             for epoch in range(1, self.cfg.train.epochs + 1):               
                 print("Evaluate checkpoint model")
                 if self.cfg.tta.usetta=="False":
-                    self.eval(data_loader=self.test_loader,model=model,epoch=epoch)  
+                    val_metric=self.eval(data_loader=self.test_loader,model=model,epoch=epoch)  
                 else:
-                    self.eval_tta(model=model,epoch=epoch,data_loader=self.tta_test_loader)
-
+                    val_metric=self.eval_tta(model=model,epoch=epoch,data_loader=self.tta_test_loader)
+                # val_metrics.append(metric)
         else:            
             for epoch in range(1, self.cfg.train.epochs + 1):
                 print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
  
-                self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
+                train_metric=self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
+                train_metrics.append(train_metric)
                 if self.cfg.tta.usetta=="False":
-                    metric=self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch)  
+                    val_metric=self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch)  
                 else:
-                    metric=self.eval_tta(model=self.model,epoch=epoch,data_loader=self.tta_test_loader)
-
+                    val_metric=self.eval_tta(model=self.model,epoch=epoch,data_loader=self.tta_test_loader)
+                val_metrics.append(val_metric)
                 self.save_best_model(
-                metric, epoch, self.model, self.optimizer, self.criterion)
-                self.lr_scheduler.step()
+                val_metric, epoch, self.model, self.optimizer, self.criterion)
+        modelUtils.save_plots(cfg=self.cfg,train_metrics=train_metrics,val_metrics=val_metrics)
+                # self.lr_scheduler.step()
+        
         print ("Finish default training")
         print('-'*100)
     def progressive_train_epochs(self):
@@ -151,7 +157,7 @@ class chexpertNet():
             print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
             self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.prog_optimizer)     
             self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch)  
-            self.prog_lr_scheduler.step()        
+            # self.prog_lr_scheduler.step()        
         print(" Train on default size image set")
         for epoch in range(1, self.cfg.train.epochs + 1):
             print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
@@ -162,7 +168,7 @@ class chexpertNet():
                 metric=self.eval_tta(model=self.model,epoch=epoch,data_loader=self.tta_test_loader) 
             self.save_best_model(
                 metric, epoch, self.model, self.optimizer, self.criterion)
-            self.lr_scheduler.step()   
+            # self.lr_scheduler.step()   
         print ("Finish progressive training")
 
     def loadModel(self):

@@ -12,7 +12,6 @@
            "pretrain":"True" 
     },
     
-    "num_class":14,
     "image":{
         "image_fix_length":320,
         "progressive_image_size":160
@@ -26,10 +25,10 @@
     "load_ckp":"False",
     "criterion":"balanceBCE",
     "balanceBCE":{
-        "beta":0.9
+        "beta":0.99
     },
     "train":{
-        "epochs": 5,
+        "epochs": 2,
         "log_interval":4,
         "batch_size": 32,
         "optimizer":{
@@ -50,7 +49,7 @@
         }
     },
     "mini_data":{
-        "train":150000,
+        "train":1000,
         "val":500
     },
     "progressive_mini_data":{
@@ -58,7 +57,7 @@
         "val":500
     },
     "tta":{
-        "usetta":"True",
+        "usetta":"False",
         "times":10
     }  
 }

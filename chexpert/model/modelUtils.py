@@ -24,7 +24,7 @@ class SaveBestModel:
     model state.
     """
     def __init__(
-        self, best_valid_AUC=-float('inf'),cfg
+        self, cfg,best_valid_AUC=-float('inf'),
     ):
         self.best_valid_AUC = best_valid_AUC
         self.cfg=cfg
@@ -51,9 +51,7 @@ class SaveBestModel:
             
 
 def save_plots(cfg,train_metric, val_metric):
-    """
-    Function to save the loss and accuracy plots to disk.
-    """
+  
     # if int(cfg.mini_data)>=100000:
         classlabel=[]
         for x in cfg.class_idx:
@@ -80,8 +78,8 @@ def save_plots(cfg,train_metric, val_metric):
             val_meanAUC.append(item["meanAUC"])
             val_loss.append(item["loss"])
 
-        train_classAUC=np.array(train_classAUC)
-        val_classAUC=np.array(val_classAUC)
+        train_classAUC=np.array(train_classAUC).reshape(-1,len(classlabel))
+        val_classAUC=np.array(val_classAUC).reshape(-1,len(classlabel))
 
         train_meanAUC=np.array(train_meanAUC)
         val_meanAUC=np.array(val_meanAUC)
@@ -89,40 +87,43 @@ def save_plots(cfg,train_metric, val_metric):
         train_loss=np.array(train_loss)
         val_loss=np.array(val_loss)
         row=int(math.sqrt(len(classlabel)+2))
-        plt.figure(figsize=(20, 15))
-        fig,ax=plt.subplots(nrows=row+1, ncols=row+1)
+        # plt.figure(figsize=(20, 15))
+        fig,ax=plt.subplots(nrows=row+1, ncols=row+1,figsize=15)
         stop_plot=False
         counter=0
         ax[0,0].plot(train_meanAUC,label="Mean train AUC")
         ax[0,0].plot(val_meanAUC,label="Mean validation AUC")
         ax[0,0].set(xlabel="epoch", ylabel="AUC")
         ax[0,0].set_title("Mean AUC")
+        ax[0,0].legend()
         ax[0,1].plot(train_loss,label="Mean train loss")
         ax[0,1].plot(val_loss,label="Mean validation loss")
         ax[0,1].set(xlabel="epoch", ylabel="loss")
         ax[0,1].set_title("Mean loss")
+        ax[0,1].legend()
         for i in range(row+1):
-        if stop_plot:
-            break
-        for j in range (row+1):
-            if i==0 and j==0:
-                continue
-            if i==0 and j==1:
-                continue
             if stop_plot:
                 break
-            if counter>=len(classlabel):
-                stop_plot=True
-                break
-            
-            ax[i,j].plot(train_classAUC[:,counter],color='green', linestyle='-')
-            ax[i,j].set(xlabel="epoch", ylabel="auc")
-            ax[i,j].set_title(classlabel[counter])
-            counter +=1
+            for j in range (row+1):
+                if i==0 and j==0:
+                    continue
+                if i==0 and j==1:
+                    continue
+                if stop_plot:
+                    break
+                if counter>=len(classlabel):
+                    stop_plot=True
+                    break             
+                ax[i,j].plot(train_classAUC[:,counter],color='green', linestyle='-', marker="o",label="train auc")
+                ax[i,j].plot(val_classAUC[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
+                ax[i,j].set(xlabel="epoch", ylabel="auc")
+                ax[i,j].set_title(classlabel[counter])
+                ax[i,j].legend()
+                counter +=1
 
         fig.tight_layout()
         plt.show()
-        fig.savefig(os.path.join(path,"visualize.png"))
+        fig.savefig(path)
 
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)

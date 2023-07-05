@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import random 
 import sys
-sys.path.append("../datasets")
+sys.path.append("../data")
 from . import dataUtils
 import torch
 import numpy as np
@@ -86,14 +86,15 @@ def loadData(cfg,mode="default"):
                                  ])  
         train_data=ChestDataset(cfg=cfg,csv_file=train_csv_path,mini_data=mini_data["train"] , transform=train_transform,mode="train")
         test_data=ChestDataset(cfg=cfg,csv_file=cfg.path.test_csv_path,transform=test_transform,mode="val")
-        train_loader=torch.utils.data.DataLoader (train_data,batch_size=cfg.train.batch_size,shuffle=True)
-        test_loader=torch.utils.data.DataLoader(test_data,batch_size=1,shuffle=False)
+        train_loader=torch.utils.data.DataLoader (train_data,batch_size=cfg.train.batch_size,shuffle=True,num_workers=8)
+        test_loader=torch.utils.data.DataLoader(test_data,batch_size=1,shuffle=False,num_workers=8)
+        # train_loader=torch.utils.data.DataLoader (train_data,batch_size=cfg.train.batch_size,shuffle=True)
+        # test_loader=torch.utils.data.DataLoader(test_data,batch_size=1,shuffle=False)
         return train_loader,test_loader
 def tta_loader(cfg):
     def expand (image,*arg,**karg):
             image=np.expand_dims(image,axis=0)
-            return np.repeat(image,3,axis=0)
-    
+            return np.repeat(image,3,axis=0)   
     img_size=320    
     factor=0.05
     ceil=int (img_size*(1+factor) )
@@ -106,12 +107,7 @@ def tta_loader(cfg):
             A.Lambda( image=expand),                
                         ])
     test_data=ChestDataset(cfg=cfg,csv_file=cfg.path.test_csv_path,transform=test_transform,mode="val")
-    return torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False)   
-
-# cfg_path="/root/repo/Chexpert/chexpert/config/config.json" 
-# with open(cfg_path) as f:
-#     cfg = edict(json.load(f))
-# traindata,testdata=loadData(cfg=cfg)
+    return torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False, num_workers=8)   
 
 
 
