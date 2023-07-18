@@ -167,7 +167,6 @@ class Metric():
                     "meanAUC": round (np.mean(list(aucs.values())) ,4 ),
                     'fpr': fpr,
                 'tpr': tpr,
-                # 'aucs':  [np.round(item,2) for item in aucs],
                 'aucs':aucs,
                 'precision': precision,
                 'recall': recall,
