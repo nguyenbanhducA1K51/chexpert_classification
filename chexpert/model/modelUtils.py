@@ -33,7 +33,7 @@ class SaveBestModel:
 
             abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
             if metric["meanAUC"] > self.best_auc:
-                write_json(key=best_auc,val=metric["meanAUC"],filepath=path)
+                write_json(key="best_auc",val=metric["meanAUC"],filepath=path)
                 self.best_auc= metric["meanAUC"]
                 print(f"\nBest validation  AUC: {self.best_auc}")
                 print(f"\nSaving best model for epoch: {epoch}\n")
@@ -130,7 +130,7 @@ def write_json(key,val,filepath):
         data = json.load(file)
     data[key] = val
     with open(filepath, 'w') as file:
-    json.dump(data, file, indent=4)
+        json.dump(data, file, indent=4)
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()

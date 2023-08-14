@@ -13,11 +13,8 @@ from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
 from enum import Enum
-from libauc.optimizers import PESG 
-from libauc.losses import AUCM_MultiLabel, CrossEntropyLoss
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
-import ttach as tta 
 from tqdm import tqdm
 class chexpertNet():
     def __init__(self,cfg,device):

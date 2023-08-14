@@ -1,9 +1,9 @@
 {   
     "path":{
-        "project_path":"/root/project/chexpert",
-        "root":"/root",
-        "train_csv_path": "/root/CheXpert-v1.0-small/train.csv",
-        "test_csv_path": "/root/CheXpert-v1.0-small/valid.csv" 
+        "project_path":"/root/repo",
+        "root":"/root/data",
+        "train_csv_path": "/root/data/CheXpert-v1.0-small/train.csv",
+        "test_csv_path": "/root/data/CheXpert-v1.0-small/valid.csv" 
     },
     "class_idx":[ 7,10,11,13,15 ],
     

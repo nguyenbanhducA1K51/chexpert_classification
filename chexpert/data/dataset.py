@@ -94,7 +94,7 @@ def tta_loader(cfg):
             return np.repeat(image,3,axis=0)   
     img_size=320    
     factor=0.05
-    ceil=int (img_size*(1+factor) )2
+    ceil=int (img_size*(1+factor) )
     floor=int (img_size*(1-factor) )
     test_transform = A.Compose([
             A.Resize(height=ceil,width=ceil) ,                     

@@ -2,7 +2,9 @@
 import sys
 import torch
 import json,os
-from  model import chexpert
+# sys.path.append("../model")
+# sys.path.append("../data")
+from model import chexpert
 from  data import dataset
 from torch.nn import functional as F
 from easydict import EasyDict as edict

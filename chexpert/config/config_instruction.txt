@@ -2,3 +2,6 @@ backbone.name: {densenet121, convnext_t}
 criterion :{ bce, balanceBCE }
 optimizer :{Adam,SGD}
 
+
+link dataset : https://www.kaggle.com/datasets/ssttff/chexpertv10small
+
