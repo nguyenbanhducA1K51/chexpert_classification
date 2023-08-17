@@ -15,7 +15,6 @@ class DenseNetClassifier (nn.Module):
     def forward (self,x):
         x=self.dense(x)
         x= F.relu(x, inplace=True)
-        class_layer=getattr(self,"cls_0")
         logits=[]
         for i in range(0,self.num_classes):
             class_layer=getattr(self,"cls_"+str(i))

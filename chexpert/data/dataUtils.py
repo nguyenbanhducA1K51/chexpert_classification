@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from torch.nn import functional as F
 import torch
 import torch.nn as nn
+from typing import Union, Tuple, List,Literal
+from torch.utils.data import Dataset
 class balanceBCE(nn.Module):
     def __init__(self,beta,device):
         super(balanceBCE,self).__init__()
@@ -28,3 +30,32 @@ class balanceBCE(nn.Module):
         loss=-positive_factor*target*torch.log(output)-(1-target)* negative_factor*torch.log(1-output)
         return loss
 
+def visualize_images_mulitple_times(dataloader,img_list_idx:List[int], times:int,save_path):
+      
+    return 
+
+    # def transform(image, cfg):
+    #     assert image.ndim == 2, "image must be gray image"
+    #     if cfg.use_equalizeHist:
+    #         image = cv2.equalizeHist(image)
+
+    #     if cfg.gaussian_blur > 0:
+    #         image = cv2.GaussianBlur(
+    #             image,
+    #             (cfg.gaussian_blur, cfg.gaussian_blur), 0)
+
+    #     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+    #     image = fix_ratio(image, cfg)
+    #     # augmentation for train or co_train
+
+    #     # normalization
+    #     image = image.astype(np.float32) - cfg.pixel_mean
+    #     # vgg and resnet do not use pixel_std, densenet and inception use.
+    #     if cfg.pixel_std:
+    #         image /= cfg.pixel_std
+    #     # normal image tensor :  H x W x C
+    #     # torch image tensor :   C X H X W
+    #     image = image.transpose((2, 0, 1))
+
+    #     return image
