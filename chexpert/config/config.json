@@ -28,7 +28,7 @@
         "beta":0.99
     },
     "train":{
-        "epochs": 20,
+        "epochs": 2,
         "log_interval":4,
         "batch_size": 32,
         "optimizer":{
@@ -38,8 +38,9 @@
         }    
 
     },
+    "k_fold":5,
     "progressive_train":{
-        "epochs": 2,
+        "epochs": 5,
         "log_interval":4,
         "batch_size": 32,
         "optimizer":{
@@ -49,8 +50,8 @@
         }
     },
     "mini_data":{
-        "train":1000000,
-        "val":1000
+        "train":1000,
+        "test":10000
     },
     "progressive_mini_data":{
         "train":200000,

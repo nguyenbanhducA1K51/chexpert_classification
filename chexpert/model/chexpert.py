@@ -4,18 +4,23 @@ import torch
 import json,os
 sys.path.append("../data")
 sys.path.append("../model")
-from data import dataUtils, dataset
+from data.dataset import ChestDataset
+from data import dataUtils
 from data.common import csv_index
 from . import modelUtils,backbone
 from torch.nn import functional as F
-
+from sklearn.model_selection import KFold
 from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
-from enum import Enum
 import torch.nn as nn
 from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
+from torch.utils.data import DataLoader
+import copy
+import glob
+
+# torch.manual_seed(42)
 class chexpertNet():
     def __init__(self,cfg,device):
         self.cfg=cfg
@@ -27,15 +32,11 @@ class chexpertNet():
         self.model=self.loadModel().to(device)
         self.optimizer, self.lr_scheduler=self.loadOptimizer(self.model)
         self.criterion=self.loadCriterion()
-        self.metric=modelUtils.Metric(self.classes)   
-        self.train_loader,self.test_loader= dataset.loadData(cfg=cfg)      
+        self.metric=modelUtils.Metric(self.classes)       
         self.prog_optimizer,self.prog_lr_scheduler=self.loadOptimizer(self.model,mode="progressive")
-        self.progress_train_loader,self.progress_test_loader=dataset.loadData(cfg=cfg,mode="progressive")   
-        self.tta_test_loader=dataset.tta_loader(self.cfg)
         self.save_best_model=modelUtils.SaveBestModel(cfg=self.cfg)
     def train_epoch(self,data_loader,epoch,model,optim):
             log_interval=self.cfg.train.log_interval
-            train_correct=0 
             outputs=[]
             targets=[]       
             losses= modelUtils.AverageMeter()       
@@ -44,7 +45,7 @@ class chexpertNet():
                 for batch_idx, (data, target) in enumerate(tepoch):
                     tepoch.set_description("Batch {}".format(batch_idx) )
                     data=data.to(self.device).float()
-                    target=target.to(self.device)
+                    target=target.to(self.device) 
                     optim.zero_grad()
                     output = model(data)   
                     targets.append(target)  
@@ -118,55 +119,74 @@ class chexpertNet():
         print (" Mean AUC using tta : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))
         modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
         return metric                           
-    def train_epochs (self):    
+    def train_epochs (self,train_loader,val_loader,lowres_train_loader=None,lowres_val_loader=None,fold=1):    
         train_metrics=[]
         val_metrics=[]
         if self.cfg.load_ckp=="True":
             model=self.loadckpModel()
             for epoch in range(1, self.cfg.train.epochs + 1):               
                 print("Evaluate checkpoint model")
-                if self.cfg.tta.usetta=="False":
-                    val_metric=self.eval(data_loader=self.test_loader,model=model,epoch=epoch)  
-                else:
-                    val_metric=self.eval_tta(model=model,epoch=epoch,data_loader=self.tta_test_loader)
-                # val_metrics.append(metric)
-        else:            
-            for epoch in range(1, self.cfg.train.epochs + 1):
-                print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
- 
-                train_metric=self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
+                val_metric=self.eval(data_loader=val_loader,model=model,epoch=epoch)  
+
+        else:          
+            if lowres_train_loader is not None and lowres_val_loader is not None:
+                print(" TRAIN ON LOW-RES DATASET")         
+                for epoch in range(1, self.cfg.progressive_train.epochs + 1):
+                    print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
+                    lowres_train_metric=self.train_epoch( data_loader=lowres_train_loader,epoch=epoch,model=self.model,optim=self.prog_optimizer)  
+                    lowres_val_metric=self.eval(data_loader=lowres_val_metric,model=self.model,epoch=epoch)
+                 
+            print(" TRAIN ON HI-RES DATASET")  
+            for epoch in range(1,self.cfg.train.epochs+1):
+                train_metric=self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
                 train_metrics.append(train_metric)
-                if self.cfg.tta.usetta=="False":
-                    val_metric=self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch)  
-                else:
-                    val_metric=self.eval_tta(model=self.model,epoch=epoch,data_loader=self.tta_test_loader)
+                val_metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
                 val_metrics.append(val_metric)
-                self.save_best_model(
-                val_metric, epoch, self.model, self.optimizer, self.criterion)
-        modelUtils.save_plots(cfg=self.cfg,train_metrics=train_metrics,val_metrics=val_metrics)
+            
                 # self.lr_scheduler.step()
-        
+      
         print ("Finish default training")
         print('-'*100)
-    def progressive_train_epochs(self):
-        print(" Train on small size image set")   
-        for epoch in range(1, self.cfg.progressive_train.epochs + 1):
-            print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
-            self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.prog_optimizer)     
-            self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch)  
-            # self.prog_lr_scheduler.step()        
-        print(" Train on default size image set")
-        for epoch in range(1, self.cfg.train.epochs + 1):
-            print(f"[INFO]: Epoch {epoch} of {self.cfg.train.epochs}")
-            self.train_epoch( data_loader=self.train_loader,epoch=epoch,model=self.model,optim=self.optimizer) 
-            if self.cfg.tta.usetta=="False" : 
-                metric=self.eval(data_loader=self.test_loader,model=self.model,epoch=epoch+int(self.cfg.progressive_train.epochs))                 
-            else:   
-                metric=self.eval_tta(model=self.model,epoch=epoch,data_loader=self.tta_test_loader) 
-            self.save_best_model(
-                metric, epoch, self.model, self.optimizer, self.criterion)
-            # self.lr_scheduler.step()   
-        print ("Finish progressive training")
+        return train_metrics ,val_metrics
+    
+    def test(self):
+        test_dataset= ChestDataset(cfg=self.cfg,mode="test") 
+        data_loader=torch.utils.data.DataLoader(
+                    test_dataset, 
+                    batch_size=1)
+        models_save_path="/root/repo/chexpert_classification/chexpert/output/models"
+        files = [f for f in os.listdir(models_save_path) if os.path.isfile(os.path.join(models_save_path, f))]
+        pth_files = [f for f in files if f.endswith('.pth')]
+        models=[]
+        for file in pth_files:
+            path=os.path.join(models_save_path,file)
+            state_dict=torch.load(path)
+            new_model=copy.deepcopy(self.model)
+            new_model.load_state_dict(state_dict['model_state_dict'])
+            models.append(new_model)
+        for model in models:
+            model.to(self.device)
+            model.eval()
+        losses= modelUtils.AverageMeter()   
+        outputs=[]
+        targets=[]
+        with torch.no_grad():
+            with tqdm(data_loader, unit="batch") as tepoch:
+                for idx,(data, target) in enumerate(tepoch):
+                    data=data.to(self.device).float()
+                    target=target.to(self.device)              
+                    targets.append(target)
+                    tmp_output =[model(data) for model in models]
+                    output=torch.mean(torch.stack(tmp_output), dim=0)
+                    outputs.append(output)        
+                    loss = self.criterion(output=output, target=target).sum(1).mean(0)    
+                    losses.update(loss.item()) 
+                    if idx%4==0:
+                        tepoch.set_postfix(loss=loss.item())                                     
+        outputs=torch.concat(outputs,dim=0).detach()
+        targets=torch.concat(targets,dim=0).detach()
+        metric=self.metric.compute_metrics(outputs=outputs,targets=targets,losses=losses.mean)
+        print (" Mean AUC : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))  
 
     def loadModel(self):
         if self.cfg.backbone.name=="densenet121":    
@@ -217,4 +237,51 @@ class chexpertNet():
             else:
                 raise Exception (" not support that optimizer")
 
+    def k_fold_train(self):
+
+        k_folds = self.cfg.k_fold
+        kfold = KFold(n_splits=k_folds, shuffle=True)
+        train_dataset=ChestDataset(cfg=self.cfg)
+    
+        lowres_train_dataset=ChestDataset(cfg=self.cfg,train_mode="progressive") if self.cfg.train_mode=="progresssive" else None
+
+        multiple_train_metrics=[]
+        multiple_val_metrics=[]
+        self.models=self.loadModel()
+        models=[]
+
+        for fold, (train_ids, val_ids) in enumerate(kfold.split(train_dataset)):
+            print(f'FOLD {fold+1}')
+            print('--------------------------------')          
+            train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
+            val_subsampler = torch.utils.data.SubsetRandomSampler(val_ids)
+            train_loader = torch.utils.data.DataLoader(
+                        train_dataset, 
+                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler)
+            val_loader = torch.utils.data.DataLoader(
+                        train_dataset,
+                        batch_size=1, sampler=val_subsampler)
+            lowres_train_loader=torch.utils.data.DataLoader(
+                        lowres_train_dataset, 
+                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler) if self.cfg.train_mode=="progresssive" else None
+            lowres_val_loader=torch.utils.data.DataLoader(
+                        lowres_train_dataset,
+                        batch_size=1, sampler=val_subsampler)if self.cfg.train_mode=="progresssive" else None
+            
+            self.model.apply(reset_weights)
+            train_metrics,val_metrics=self.train_epochs(train_loader,val_loader,lowres_train_loader,lowres_val_loader,fold)
+            multiple_train_metrics.append(train_metrics)
+            multiple_val_metrics.append(val_metrics)
+            models.append(copy.deepcopy(self.model.state_dict()))
+
+            mean_aucs_of_epochs=np.mean([data["meanAUC"] for data in val_metrics]),
+            highest_mean_auc=np.max([data["meanAUC"] for data in val_metrics] ),
+        print (f"Finish train on fold {fold+1} with mean auc of epochs {mean_aucs_of_epochs}, highes mean auc {highest_mean_auc}")
+        modelUtils.save_metrics_and_models({"train_stats":multiple_train_metrics,"val_stats":multiple_val_metrics},models)
+
        
+def reset_weights(m):
+    for layer in m.children():
+        if hasattr(layer, 'reset_parameters'):
+            # print(f'Reset trainable parameters of layer = {layer}')
+            layer.reset_parameters()

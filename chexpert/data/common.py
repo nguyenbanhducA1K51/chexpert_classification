@@ -37,13 +37,14 @@ def load_transform(cfg,mode:Literal["train","test"]="train", train_mode:Literal[
                     A.Resize(height=ceil,width=ceil) ,                     
                     A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
                     A.RandomSizedCrop(min_max_height=(floor,ceil ),height=img_size,width=img_size),
-                    A.Normalize(mean=[0.5330], std=[0.0349]),
+                    A.HorizontalFlip(),
+                    A.Normalize(mean=[128.21/255], std=[73.22/255]),
                     A.Lambda( image=expand),                
                                 ])
 
     test_transform=A.Compose([  
                     A.Resize(height=img_size,width=img_size),
-                    A.Normalize(mean=[0.5330], std=[0.0349]),
+                    A.Normalize(mean=[128.21/255], std=[73.22/255]),
                     A.Lambda( image=expand),
                                     ])  
     if mode=="train":

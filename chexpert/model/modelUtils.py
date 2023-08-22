@@ -15,7 +15,8 @@ import json
 from datetime import datetime
 from data.common import csv_index
 import math 
-path= os.path.dirname(os.path.abspath(__name__)) +"/model/output/record.json"
+from typing import Literal,List
+path= os.path.dirname(os.path.abspath(__name__)) +"/output/record.json"
 with open(path) as f:
     record = edict(json.load(f))
 class SaveBestModel: 
@@ -31,7 +32,7 @@ class SaveBestModel:
     ):
         # if int(cfg.mini_data)>=100000:
 
-            abspath=os.path.dirname(os.path.abspath(__name__))+"/model/output/best_model.pth"
+            abspath=os.path.dirname(os.path.abspath(__name__))+"/output/best_model.pth"
             if metric["meanAUC"] > self.best_auc:
                 write_json(key="best_auc",val=metric["meanAUC"],filepath=path)
                 self.best_auc= metric["meanAUC"]
@@ -42,89 +43,111 @@ class SaveBestModel:
                     'aucs': metric['aucs'],
                     'epoch': epoch,
                     'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
                   
                     }, abspath)
             
+def save_metrics_and_models(metrics,models):      
+    multiple_train_metrics=metrics["train_stats"]
+    multiple_val_metrics=metrics["val_stats"]
+    
+    now = datetime.now() 
+    dt_string = now.strftime("%d-%m-%Y-%H:%M:%S")
+    folder=os.path.dirname(os.path.abspath(__name__))+"/output/"
+    models_folder=os.path.join(folder,"models") 
+    os.makedirs( models_folder ,exist_ok=True)
+    # /root/repo/chexpert_classification/chexpert/output/models
+    plots_folder=os.path.join(folder,"plot") 
+    os.makedirs( plots_folder ,exist_ok=True)
+    for i in range(len(models)):
+        torch.save({
+                    'fold':i+1,
+                    'train_metric':multiple_train_metrics[i],
+                    'val_metric':multiple_val_metrics[i],
+                    'mean_aucs_of_epochs':np.mean([data["meanAUC"] for data in multiple_val_metrics[i]]),
+                    'highest_mean_auc':np.max([data["meanAUC"] for data in multiple_val_metrics[i]] ),
+                    'model_state_dict': models[i],
+                  
+                    }, os.path.join(models_folder,f"fold_{i+1}.pth"))
+        save_plots(plots_folder,multiple_train_metrics[i],multiple_val_metrics[i],fold=i+1)
+               
 
-def save_plots(cfg,train_metrics, val_metrics):
-  
-    # if int(cfg.mini_data)>=100000:
-        classlabel=[]
-        for x in cfg.class_idx:
-            classlabel.append(csv_index[str(x)])
-        now = datetime.now() 
-        dt_string = now.strftime("%d-%m-%Y-%H:%M:%S.png")
-        path=os.path.dirname(os.path.abspath(__name__))+"/model/output/"+dt_string     
-        train_classAUC=[]
-        val_classAUC=[]
-        train_meanAUC=[]
-        val_meanAUC=[]
-        train_loss=[]
-        val_loss=[]
+def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,15 ]):
+            classlabel=[]
+            for x in class_idx:
+                classlabel.append(csv_index[str(x)])
 
-        train_aucs=[]
-        val_aucs=[]
-        for label in classlabel:
-            train_label_list=[]
-            val_label_list=[]
+            save_path=os.path.join(folder,f"metric_fold{fold}.png")
+            
+            train_meanAUC=[]
+            val_meanAUC=[]
+            train_loss=[]
+            val_loss=[]
+
+            train_aucs=[]
+            val_aucs=[]
+
+            for label in classlabel:
+                
+                train_label_list=[]
+                val_label_list=[]
+                for item in train_metrics :
+                    train_label_list.append((item["aucs"][label]))
+                for item in val_metrics :
+                    val_label_list.append((item["aucs"][label]))
+                train_aucs.append(train_label_list)
+                val_aucs.append(val_label_list)
+            train_aucs=np.array(train_aucs).reshape(-1,len(classlabel))
+            val_aucs=np.array(val_aucs).reshape(-1,len(classlabel))
+
             for item in train_metrics :
-                train_label_list.append((item["aucs"][label]))
+                train_meanAUC.append(item["meanAUC"])
+                train_loss.append(item["loss"])
             for item in val_metrics :
-                val_label_list.append((item["aucs"][label]))
-            train_aucs.append(train_label_list)
-            val_aucs.append(val_label_list)
-        train_aucs=np.array(train_aucs).reshape(-1,len(classlabel))
-        val_aucs=np.array(val_aucs).reshape(-1,len(classlabel))
+                val_meanAUC.append(item["meanAUC"])
+                val_loss.append(item["loss"])
 
-        for item in train_metrics :
-            train_meanAUC.append(item["meanAUC"])
-            train_loss.append(item["loss"])
-        for item in val_metrics :
-            val_meanAUC.append(item["meanAUC"])
-            val_loss.append(item["loss"])
+            train_meanAUC=np.array(train_meanAUC)
+            val_meanAUC=np.array(val_meanAUC)
 
-        train_meanAUC=np.array(train_meanAUC)
-        val_meanAUC=np.array(val_meanAUC)
-
-        train_loss=np.array(train_loss)
-        val_loss=np.array(val_loss)
-        row=int(math.sqrt(len(classlabel)+2))
-        fig,ax=plt.subplots(row+1,row+1,figsize=(15, 15))
-        stop_plot=False
-        counter=0
-        ax[0,0].plot(train_meanAUC,label="Mean train AUC")
-        ax[0,0].plot(val_meanAUC,label="Mean validation AUC")
-        ax[0,0].set(xlabel="epoch", ylabel="AUC")
-        ax[0,0].set_title("Mean AUC")
-        ax[0,0].legend()
-        ax[0,1].plot(train_loss,label="Mean train loss")
-        ax[0,1].plot(val_loss,label="Mean validation loss")
-        ax[0,1].set(xlabel="epoch", ylabel="loss")
-        ax[0,1].set_title("Mean loss")
-        ax[0,1].legend()
-        for i in range(row+1):
-            if stop_plot:
-                break
-            for j in range (row+1):
-                if i==0 and j==0:
-                    continue
-                if i==0 and j==1:
-                    continue
+            train_loss=np.array(train_loss)
+            val_loss=np.array(val_loss)
+            row=int(math.sqrt(len(classlabel)+2))
+            fig,ax=plt.subplots(row+1,row+1,figsize=(15, 15))
+            stop_plot=False
+            counter=0
+            ax[0,0].plot(train_meanAUC,label="Mean train AUC")
+            ax[0,0].plot(val_meanAUC,label="Mean validation AUC")
+            ax[0,0].set(xlabel="epoch", ylabel="AUC")
+            ax[0,0].set_title("Mean AUC")
+            ax[0,0].legend()
+            ax[0,1].plot(train_loss,label="Mean train loss")
+            ax[0,1].plot(val_loss,label="Mean validation loss")
+            ax[0,1].set(xlabel="epoch", ylabel="loss")
+            ax[0,1].set_title("Mean loss")
+            ax[0,1].legend()
+            for i in range(row+1):
                 if stop_plot:
                     break
-                if counter>=len(classlabel):
-                    stop_plot=True
-                    break             
-                ax[i,j].plot(train_aucs[:,counter],color='green', linestyle='-', marker="o",label="train auc")
-                ax[i,j].plot(val_aucs[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
-                ax[i,j].set(xlabel="epoch", ylabel="auc")
-                ax[i,j].set_title(classlabel[counter])
-                ax[i,j].legend()
-                counter +=1
-        fig.tight_layout()
-        plt.show()
-        fig.savefig(path)
+                for j in range (row+1):
+                    if i==0 and j==0:
+                        continue
+                    if i==0 and j==1:
+                        continue
+                    if stop_plot:
+                        break
+                    if counter>=len(classlabel):
+                        stop_plot=True
+                        break             
+                    ax[i,j].plot(train_aucs[:,counter],color='green', linestyle='-', marker="o",label="train auc")
+                    ax[i,j].plot(val_aucs[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
+                    ax[i,j].set(xlabel="epoch", ylabel="auc")
+                    ax[i,j].set_title(classlabel[counter])
+                    ax[i,j].legend()
+                    counter +=1
+            fig.tight_layout()
+            plt.show()
+            fig.savefig(save_path)
+    
 def write_json(key,val,filepath):
     with open(filepath, 'r') as file:
         data = json.load(file)
