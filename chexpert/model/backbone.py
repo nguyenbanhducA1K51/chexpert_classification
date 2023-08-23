@@ -38,3 +38,6 @@ class ConvNextClassifier (nn.Module):
         self.convnext.classifier[2]=nn.Linear(in_features=768, out_features=num_classes, bias=True)      
     def forward(self,x):
         return self.convnext(x)
+if __name__=='__main__':
+    net= DenseNetClassifier(4)
+    print (net)

@@ -34,9 +34,10 @@ def load_transform(cfg,mode:Literal["train","test"]="train", train_mode:Literal[
                 image=np.expand_dims(image,axis=0)
                 return np.repeat(image,3,axis=0)
     train_transform = A.Compose([
-                    A.Resize(height=ceil,width=ceil) ,                     
-                    A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
-                    A.RandomSizedCrop(min_max_height=(floor,ceil ),height=img_size,width=img_size),
+                    # A.Resize(height=ceil,width=ceil) ,                     
+                    A.ShiftScaleRotate( scale_limit =(-0.2, 0.2) ,rotate_limit=(-10,10)),
+                    A.RandomResizedCrop(height=img_size,width=img_size,scale=(0.9, 1.0),ratio=(0.75, 1.3333333333333333)),
+
                     A.HorizontalFlip(),
                     A.Normalize(mean=[128.21/255], std=[73.22/255]),
                     A.Lambda( image=expand),                

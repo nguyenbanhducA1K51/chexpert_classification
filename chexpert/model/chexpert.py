@@ -2,7 +2,8 @@
 import sys
 import torch
 import json,os
-sys.path.append("../data")
+sys.path.append("/root/repo/chexpert_classification/chexpert/")
+sys.path.append("/root/repo/chexpert_classification/chexpert/model")
 sys.path.append("../model")
 from data.dataset import ChestDataset
 from data import dataUtils
@@ -84,7 +85,7 @@ class chexpertNet():
         targets=torch.concat(targets,dim=0).detach()
         metric=self.metric.compute_metrics(outputs=outputs,targets=targets,losses=losses.mean)
         print (" Mean AUC : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))
-        modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
+
         return metric      
     def eval_tta(self,model,data_loader,epoch):
         model.eval()   
@@ -119,7 +120,7 @@ class chexpertNet():
         print (" Mean AUC using tta : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))
         modelUtils.recordTraining(cfg=self.cfg,epoch=epoch,metric=metric)
         return metric                           
-    def train_epochs (self,train_loader,val_loader,lowres_train_loader=None,lowres_val_loader=None,fold=1):    
+    def train_epochs (self,train_loader,val_loader,lowres_train_loader=None,fold=1):    
         train_metrics=[]
         val_metrics=[]
         if self.cfg.load_ckp=="True":
@@ -129,7 +130,7 @@ class chexpertNet():
                 val_metric=self.eval(data_loader=val_loader,model=model,epoch=epoch)  
 
         else:          
-            if lowres_train_loader is not None and lowres_val_loader is not None:
+            if lowres_train_loader is not None :
                 print(" TRAIN ON LOW-RES DATASET")         
                 for epoch in range(1, self.cfg.progressive_train.epochs + 1):
                     print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
@@ -260,16 +261,16 @@ class chexpertNet():
                         batch_size=self.cfg.train.batch_size, sampler=train_subsampler)
             val_loader = torch.utils.data.DataLoader(
                         train_dataset,
-                        batch_size=1, sampler=val_subsampler)
+                        batch_size=self.cfg.train.batch_size, sampler=val_subsampler,)
             lowres_train_loader=torch.utils.data.DataLoader(
                         lowres_train_dataset, 
                         batch_size=self.cfg.train.batch_size, sampler=train_subsampler) if self.cfg.train_mode=="progresssive" else None
-            lowres_val_loader=torch.utils.data.DataLoader(
-                        lowres_train_dataset,
-                        batch_size=1, sampler=val_subsampler)if self.cfg.train_mode=="progresssive" else None
+            # lowres_val_loader=torch.utils.data.DataLoader(
+            #             lowres_train_dataset,
+            #             batch_size=1, sampler=val_subsampler)if self.cfg.train_mode=="progresssive" else None
             
             self.model.apply(reset_weights)
-            train_metrics,val_metrics=self.train_epochs(train_loader,val_loader,lowres_train_loader,lowres_val_loader,fold)
+            train_metrics,val_metrics=self.train_epochs(train_loader,val_loader,lowres_train_loader,fold)
             multiple_train_metrics.append(train_metrics)
             multiple_val_metrics.append(val_metrics)
             models.append(copy.deepcopy(self.model.state_dict()))
@@ -279,9 +280,34 @@ class chexpertNet():
         print (f"Finish train on fold {fold+1} with mean auc of epochs {mean_aucs_of_epochs}, highes mean auc {highest_mean_auc}")
         modelUtils.save_metrics_and_models({"train_stats":multiple_train_metrics,"val_stats":multiple_val_metrics},models)
 
-       
+    def switch_train_test(self) :
+        # I observe that there is a significant difference between train loss and val/test loss (~ 3 for val/test loss and ~0.2 for train loss). I suspect that this is overfitting,
+        # so i try out swaping train and test set, which mean training on test set and test on train set 
+        # when run this method, val loss and train loss are almost similar, so overfit seem to be thw answer
+        train_dataset=ChestDataset(cfg=self.cfg,mode='test')
+        test_dataset=ChestDataset(cfg=self.cfg)
+        train_loader = torch.utils.data.DataLoader(
+                        train_dataset, 
+                        batch_size=self.cfg.train.batch_size)
+        test_loader = torch.utils.data.DataLoader(
+                        test_dataset,
+                        batch_size=self.cfg.train.batch_size)
+        self.train_epochs(train_loader,test_loader)
+        
+            
+
+
 def reset_weights(m):
     for layer in m.children():
         if hasattr(layer, 'reset_parameters'):
             # print(f'Reset trainable parameters of layer = {layer}')
             layer.reset_parameters()
+if __name__=="__main__":
+    from easydict import EasyDict as edict
+    import json
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    cfg_path="/root/repo/chexpert_classification/chexpert/config/config.json"
+    with open(cfg_path) as f:
+        cfg = edict(json.load(f))
+    net=chexpertNet(cfg=cfg,device=device)
+    net.switch_train_test()

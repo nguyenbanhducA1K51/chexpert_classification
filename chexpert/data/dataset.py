@@ -15,6 +15,8 @@ import json,os
 from data.common import csv_index,load_transform
 from typing import Union, Tuple, List,Literal
 import cv2
+import random
+import matplotlib.pyplot as plt
 class ChestDataset(Dataset):  
     def __init__(self,cfg, mode:Literal["train","test"]="train",train_mode:Literal["default","progressive"]="default"):
         if mode=="train":
@@ -67,6 +69,13 @@ class ChestDataset(Dataset):
             image=self.transform(image=image)  
         return  image["image"],label
     
+    def get_original_item(self,idx):
+        label=self.df.iloc[idx,self.class_idx]
+        label=label.to_numpy().astype(int)
+        img_path=os.path.join(self.root,self.df.iloc[idx,0]) 
+        image=cv2.imread(img_path,0)  
+        return image,label     
+    
     def calculate_mean_std(self,samples:int):
         means=[]
         variations=[]
@@ -92,41 +101,59 @@ class ChestDataset(Dataset):
         std=np.sqrt(var)
         return mean,std
 
-         
-           
-# def loadData(cfg,mode="default"):
-#     if mode=="default":
-#         mini_data=cfg.mini_data
-#         batch_size = cfg.train.batch_size
-#         img_size=320
-#     elif mode=="progressive":
-#         mini_data=cfg.progressive_mini_data
-#         batch_size = cfg.progressive_train.batch_size
-#         img_size=cfg.image.progressive_image_size
-    
-#     train_data=ChestDataset(cfg=cfg,mini_data=mini_data["train"] , mode="train")
-#     test_data=ChestDataset(cfg=cfg,mode="test")
-#     train_loader=torch.utils.data.DataLoader (train_data,batch_size=batch_size,shuffle=True,num_workers=16)
-#     test_loader=torch.utils.data.DataLoader(test_data,batch_size=1,shuffle=False,num_workers=16)
-#     return train_loader,test_loader
+              
 
-# def tta_loader(cfg):
-#     def expand (image,*arg,**karg):
-#             image=np.expand_dims(image,axis=0)
-#             return np.repeat(image,3,axis=0)   
-#     img_size=320    
-#     factor=0.05
-#     ceil=int (img_size*(1+factor) )
-#     floor=int (img_size*(1-factor) )
-#     test_transform = A.Compose([
-#             A.Resize(height=ceil,width=ceil) ,                     
-#             A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
-#             A.RandomSizedCrop(min_max_height=(floor,ceil ),height=img_size,width=img_size),
-#             A.Normalize(mean=[128.21/255], std=[73.22/255]),
-#             A.Lambda( image=expand),                
-#                         ])
-#     test_data=ChestDataset(cfg=cfg,mode="test")
-#     return torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False, num_workers=16)   
+def tta_loader(cfg):
+    def expand (image,*arg,**karg):
+            image=np.expand_dims(image,axis=0)
+            return np.repeat(image,3,axis=0)   
+    img_size=320    
+    factor=0.05
+    ceil=int (img_size*(1+factor) )
+    floor=int (img_size*(1-factor) )
+    test_transform = A.Compose([
+            A.Resize(height=ceil,width=ceil) ,                     
+            A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
+            A.RandomSizedCrop(min_max_height=(floor,ceil ),height=img_size,width=img_size),
+            A.Normalize(mean=[128.21/255], std=[73.22/255]),
+            A.Lambda( image=expand),                
+                        ])
+    test_data=ChestDataset(cfg=cfg,mode="test")
+    return torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False, num_workers=16)   
+
+def random_visualize(train_dataset,test_dataset):
+    n_samples=10
+  
+    train_samples={}
+    test_samples={}
+    save_folder="/root/repo/chexpert_classification/chexpert/output/learning_analysis"
+    for i in range (n_samples):
+
+        train_idx=random.choice(range(len(train_dataset)))
+        test_idx=random.choice(range(len(test_dataset)))
+        train_samples[str(train_idx)]=train_dataset.__getitem__(train_idx)
+        test_samples[str(test_idx)]=test_dataset.__getitem__(test_idx) 
+    fig,ax=plt.subplots(4,n_samples, figsize=(30,30))
+    plt.tight_layout()
+
+    for i,key in enumerate (train_samples.keys()):
+        ax[0,i].imshow(  train_samples[key][0][0],cmap="gray")
+        ax[0,i].set_title(f"row {key} of train dataset" )
+
+        ax[2,i].imshow(train_dataset.get_original_item(int(key))[0],cmap="gray")   
+        ax[2,i].set_title(f"row {key} of original train dataset" )    
+
+    for i,key in enumerate (test_samples.keys()):
+        ax[1,i].imshow( test_samples[key][0][0], cmap="gray")
+        ax[1,i].set_title(f"row {key} of test dataset" )
+
+        ax[3,i].imshow(test_dataset.get_original_item(int(key))[0],cmap="gray")   
+        ax[3,i].set_title(f"row {key} of original test dataset" )    
+
+
+    plt.show()
+    plt.savefig(os.path.join(save_folder,"samples_visualize.png"))
+    plt.clf()
 
 
 
@@ -136,11 +163,10 @@ if __name__=="__main__":
     cfg_path="/root/repo/chexpert_classification/chexpert/config/config.json"
     with open(cfg_path) as f:
         cfg = edict(json.load(f))
-    dataset=ChestDataset(cfg=cfg,mode="train")
-    for i in range (5):
-        img,label=dataset.__getitem__(i)
-        print ("type",type(img),type(label),label[i])
-        print (label,label.dtype)
+    traindataset=ChestDataset(cfg=cfg,mode="train")
+    testdataset=ChestDataset(cfg=cfg,mode="test")
+    random_visualize(traindataset,testdataset)
+   
 
 
     # for i in range (10):

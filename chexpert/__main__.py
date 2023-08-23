@@ -14,13 +14,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 with open(cfg_path) as f:
     cfg = edict(json.load(f))
 net=chexpert.chexpertNet(cfg=cfg,device=device)
+# net.switch_train_test()
 net.k_fold_train()
 net.test()
-# if cfg.train_mode.name=="default":
-#     model.train_epochs()
-# elif cfg.train_mode.name=="progressive":
-#     assert cfg.load_ckp=="False" , "load check point must be false"
-#     model.progressive_train_epochs()
+
 
 
 
