@@ -18,7 +18,7 @@
     
     },
     "train_mode":{
-        "name":"default"
+        "name":"progressive"
          
     },
     
@@ -28,21 +28,26 @@
         "beta":0.99
     },
     "train":{
-        "epochs": 10,
-        "log_interval":4,
-        "batch_size": 32,
+        "epochs": 20,
+        "log_interval":10,
+        "batch_size": 64,
         "optimizer":{
             "name": "Adam",
             "lr":1e-4,
             "weight_decay":0.0         
-        }    
+        }  ,
+       "early_stopping":{
+            "use":"True",
+            "patient":3
+
+        }
 
     },
     "k_fold":5,
     "progressive_train":{
-        "epochs": 5,
-        "log_interval":4,
-        "batch_size": 32,
+        "epochs": 10,
+        "log_interval":64,
+        "batch_size": 64,
         "optimizer":{
             "name": "Adam",
             "lr":1e-4,
@@ -51,11 +56,11 @@
     },
     "mini_data":{
         "train":2000000,
-        "test":20000
+        "test":200000
     },
     "progressive_mini_data":{
         "train":200000,
-        "val":5000
+        "val":200000
     },
     "tta":{
         "usetta":"False",

@@ -4,3 +4,4 @@ __pycache__
 *.pth
 mnist
 testEveryThing
+briefTraining.txt

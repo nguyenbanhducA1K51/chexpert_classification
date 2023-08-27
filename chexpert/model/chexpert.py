@@ -2,9 +2,9 @@
 import sys
 import torch
 import json,os
-sys.path.append("/root/repo/chexpert_classification/chexpert/")
-sys.path.append("/root/repo/chexpert_classification/chexpert/model")
-sys.path.append("../model")
+# sys.path.append("/root/repo/chexpert_classification/chexpert/")
+# sys.path.append("/root/repo/chexpert_classification/chexpert/model")
+# sys.path.append("../model")
 from data.dataset import ChestDataset
 from data import dataUtils
 from data.common import csv_index
@@ -21,7 +21,6 @@ from torch.utils.data import DataLoader
 import copy
 import glob
 
-# torch.manual_seed(42)
 class chexpertNet():
     def __init__(self,cfg,device):
         self.cfg=cfg
@@ -46,12 +45,12 @@ class chexpertNet():
                 for batch_idx, (data, target) in enumerate(tepoch):
                     tepoch.set_description("Batch {}".format(batch_idx) )
                     data=data.to(self.device).float()
-                    target=target.to(self.device) 
+                    target=target.to(self.device).float()
                     optim.zero_grad()
                     output = model(data)   
                     targets.append(target)  
                     outputs.append(output)               
-                    loss = self.criterion(output=output, target=target).sum(1).mean(0)       
+                    loss = self.criterion(output, target).sum(1).mean(0)       
                     losses.update(loss.item()) 
                     loss.backward()
                     optim.step()
@@ -73,11 +72,11 @@ class chexpertNet():
             with tqdm(data_loader, unit="batch") as tepoch:
                 for idx,(data, target) in enumerate(tepoch):
                     data=data.to(self.device).float()
-                    target=target.to(self.device)              
+                    target=target.to(self.device).float()          
                     targets.append(target)
                     output =model(data)
                     outputs.append(output)        
-                    loss = self.criterion(output=output, target=target).sum(1).mean(0)    
+                    loss = self.criterion(output, target).sum(1).mean(0)    
                     losses.update(loss.item()) 
                     if idx%4==0:
                         tepoch.set_postfix(loss=loss.item())                                     
@@ -106,7 +105,7 @@ class chexpertNet():
                             targets.append(target)
                             output = model(data)
                             outputs.append(output)        
-                            loss = self.criterion(output=output, target=target).sum(1).mean(0)    
+                            loss = self.criterion(output, target).sum(1).mean(0)    
                             losses.update(loss.item()) 
                             if idx%4==0:
                                 tepoch.set_postfix(loss=loss.item())                                     
@@ -133,28 +132,47 @@ class chexpertNet():
             if lowres_train_loader is not None :
                 print(" TRAIN ON LOW-RES DATASET")         
                 for epoch in range(1, self.cfg.progressive_train.epochs + 1):
-                    print(f"[]: Epoch {epoch} of {self.cfg.progressive_train.epochs}")
-                    lowres_train_metric=self.train_epoch( data_loader=lowres_train_loader,epoch=epoch,model=self.model,optim=self.prog_optimizer)  
-                    lowres_val_metric=self.eval(data_loader=lowres_val_metric,model=self.model,epoch=epoch)
-                 
+                    print(f"[]:  Epoch {epoch} of {self.cfg.progressive_train.epochs} on Low-res dataset")
+                    self.train_epoch( data_loader=lowres_train_loader,epoch=epoch,model=self.model,optim=self.prog_optimizer)  
+             
             print(" TRAIN ON HI-RES DATASET")  
-            for epoch in range(1,self.cfg.train.epochs+1):
-                train_metric=self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
-                train_metrics.append(train_metric)
-                val_metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
-                val_metrics.append(val_metric)
-            
+            if self.cfg.train.early_stopping.use=="True":
+                best_mean_AUC=- float('inf')
+                epochs_no_improve = 0
+                for epoch in range(1,self.cfg.train.epochs+1):
+                    train_metric=self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
+                    train_metrics.append(train_metric)
+                    
+                    val_metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
+                    best_mean_AUC=max(best_mean_AUC,val_metric["meanAUC"])
+                    if val_metric["meanAUC"] == best_mean_AUC:
+                        epochs_no_improve = 0
+                    elif val_metric["meanAUC"]< best_mean_AUC:
+                        epochs_no_improve +=1
+                    if epochs_no_improve == self.cfg.train.early_stopping.patient:
+                        print (f"Early stop on epoch {epoch}")
+                        break                  
+                    val_metrics.append(val_metric)
+            else:
+                for epoch in range(1,self.cfg.train.epochs+1):
+                    train_metric=self.train_epoch( data_loader=train_loader,epoch=epoch,model=self.model,optim=self.optimizer)              
+                    train_metrics.append(train_metric)
+                    
+                    val_metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
+                    best_mean_AUC=max(best_mean_AUC,val_metric["meanAUC"])
+                    val_metrics.append(val_metric)          
                 # self.lr_scheduler.step()
-      
+   
         print ("Finish default training")
         print('-'*100)
         return train_metrics ,val_metrics
     
     def test(self):
+        print(f"EVALUATING ON TEST SET")
         test_dataset= ChestDataset(cfg=self.cfg,mode="test") 
         data_loader=torch.utils.data.DataLoader(
                     test_dataset, 
-                    batch_size=1)
+                    batch_size=self.cfg.train.batch_size)
         models_save_path="/root/repo/chexpert_classification/chexpert/output/models"
         files = [f for f in os.listdir(models_save_path) if os.path.isfile(os.path.join(models_save_path, f))]
         pth_files = [f for f in files if f.endswith('.pth')]
@@ -180,7 +198,7 @@ class chexpertNet():
                     tmp_output =[model(data) for model in models]
                     output=torch.mean(torch.stack(tmp_output), dim=0)
                     outputs.append(output)        
-                    loss = self.criterion(output=output, target=target).sum(1).mean(0)    
+                    loss = self.criterion(output, target).sum(1).mean(0)    
                     losses.update(loss.item()) 
                     if idx%4==0:
                         tepoch.set_postfix(loss=loss.item())                                     
@@ -189,6 +207,61 @@ class chexpertNet():
         metric=self.metric.compute_metrics(outputs=outputs,targets=targets,losses=losses.mean)
         print (" Mean AUC : {: .3f}. AUC for each class: {}".format(metric["meanAUC"],metric["aucs"]))  
 
+    
+
+    def k_fold_train(self):
+
+        k_folds = self.cfg.k_fold
+        kfold = KFold(n_splits=k_folds, shuffle=True)
+        train_dataset=ChestDataset(cfg=self.cfg)
+    
+        lowres_train_dataset=ChestDataset(cfg=self.cfg,train_mode="progressive") if self.cfg.train_mode.name=="progressive" else None
+
+        multiple_train_metrics=[]
+        multiple_val_metrics=[]
+        self.models=self.loadModel()
+        models=[]
+
+        for fold, (train_ids, val_ids) in enumerate(kfold.split(train_dataset)):
+            print(f'FOLD {fold+1}')
+            print('--------------------------------')          
+            train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
+            val_subsampler = torch.utils.data.SubsetRandomSampler(val_ids)
+            train_loader = torch.utils.data.DataLoader(
+                        train_dataset, 
+                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler)
+            val_loader = torch.utils.data.DataLoader(
+                        train_dataset,
+                        batch_size=self.cfg.train.batch_size, sampler=val_subsampler,)
+            lowres_train_loader=torch.utils.data.DataLoader(
+                        lowres_train_dataset, 
+                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler) if self.cfg.train_mode.name=="progressive" else None
+
+            
+            self.model.apply(reset_weights)
+            train_metrics,val_metrics=self.train_epochs(train_loader,val_loader,lowres_train_loader,fold)
+            multiple_train_metrics.append(train_metrics)
+            multiple_val_metrics.append(val_metrics)
+            models.append(copy.deepcopy(self.model.state_dict()))
+
+            mean_aucs_of_epochs=np.mean([data["meanAUC"] for data in val_metrics]),
+            highest_mean_auc=np.max([data["meanAUC"] for data in val_metrics] ),
+        print (f"Finish train on fold {fold+1} with mean auc of epochs {mean_aucs_of_epochs}, highes mean auc {highest_mean_auc}")
+        modelUtils.save_metrics_and_models({"train_stats":multiple_train_metrics,"val_stats":multiple_val_metrics},models)
+
+    def switch_train_test(self) :
+        # I observe that there is a significant difference between train loss and val/test loss (~ 3 for val/test loss and ~0.2 for train loss). I suspect that this is overfitting,
+        # so i try out swaping train and test set, which mean training on test set and test on train set 
+        # when run this method, val loss and train loss are almost similar, so overfit seem to be thw answer
+        train_dataset=ChestDataset(cfg=self.cfg,mode='test')
+        test_dataset=ChestDataset(cfg=self.cfg)
+        train_loader = torch.utils.data.DataLoader(
+                        train_dataset, 
+                        batch_size=self.cfg.train.batch_size)
+        test_loader = torch.utils.data.DataLoader(
+                        test_dataset,
+                        batch_size=self.cfg.train.batch_size)
+        self.train_epochs(train_loader,test_loader)
     def loadModel(self):
         if self.cfg.backbone.name=="densenet121":    
             if self.cfg.train_mode.name=="default":
@@ -215,7 +288,7 @@ class chexpertNet():
             raise Exception (" not support that criterion")
                 
     def loadOptimizer(self,model,mode="default"):
-        if mode=="default":
+       
             if self.cfg.train.optimizer.name=="Adam":         
                 op=optim.Adam(model.parameters(),lr=self.cfg.train.optimizer.lr, weight_decay=self.cfg.train.optimizer.weight_decay)
                 scheduler = StepLR(op, step_size=1, gamma=0.1,verbose=True)
@@ -226,75 +299,6 @@ class chexpertNet():
                 return op, scheduler
             else:
                 raise Exception (" not support that optimizer")
-        elif mode=="progressive":
-            if self.cfg.progressive_train.optimizer.name=="Adam":   
-                op=optim.Adam(model.parameters(),lr=self.cfg.progressive_train.optimizer.lr, weight_decay=self.cfg.progressive_train.optimizer.weight_decay)
-                scheduler = StepLR(op, step_size=1, gamma=0.1,verbose=True)
-                return op,scheduler
-            elif self.cfg.progressive_train.optimizer.name=="SGD":         
-                op= optim.SGD(model.parameters(),lr=0.005, weight_decay=0.001)
-                scheduler = StepLR(op, step_size=1, gamma=0.1,verbose=True)
-                return op, scheduler
-            else:
-                raise Exception (" not support that optimizer")
-
-    def k_fold_train(self):
-
-        k_folds = self.cfg.k_fold
-        kfold = KFold(n_splits=k_folds, shuffle=True)
-        train_dataset=ChestDataset(cfg=self.cfg)
-    
-        lowres_train_dataset=ChestDataset(cfg=self.cfg,train_mode="progressive") if self.cfg.train_mode=="progresssive" else None
-
-        multiple_train_metrics=[]
-        multiple_val_metrics=[]
-        self.models=self.loadModel()
-        models=[]
-
-        for fold, (train_ids, val_ids) in enumerate(kfold.split(train_dataset)):
-            print(f'FOLD {fold+1}')
-            print('--------------------------------')          
-            train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
-            val_subsampler = torch.utils.data.SubsetRandomSampler(val_ids)
-            train_loader = torch.utils.data.DataLoader(
-                        train_dataset, 
-                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler)
-            val_loader = torch.utils.data.DataLoader(
-                        train_dataset,
-                        batch_size=self.cfg.train.batch_size, sampler=val_subsampler,)
-            lowres_train_loader=torch.utils.data.DataLoader(
-                        lowres_train_dataset, 
-                        batch_size=self.cfg.train.batch_size, sampler=train_subsampler) if self.cfg.train_mode=="progresssive" else None
-            # lowres_val_loader=torch.utils.data.DataLoader(
-            #             lowres_train_dataset,
-            #             batch_size=1, sampler=val_subsampler)if self.cfg.train_mode=="progresssive" else None
-            
-            self.model.apply(reset_weights)
-            train_metrics,val_metrics=self.train_epochs(train_loader,val_loader,lowres_train_loader,fold)
-            multiple_train_metrics.append(train_metrics)
-            multiple_val_metrics.append(val_metrics)
-            models.append(copy.deepcopy(self.model.state_dict()))
-
-            mean_aucs_of_epochs=np.mean([data["meanAUC"] for data in val_metrics]),
-            highest_mean_auc=np.max([data["meanAUC"] for data in val_metrics] ),
-        print (f"Finish train on fold {fold+1} with mean auc of epochs {mean_aucs_of_epochs}, highes mean auc {highest_mean_auc}")
-        modelUtils.save_metrics_and_models({"train_stats":multiple_train_metrics,"val_stats":multiple_val_metrics},models)
-
-    def switch_train_test(self) :
-        # I observe that there is a significant difference between train loss and val/test loss (~ 3 for val/test loss and ~0.2 for train loss). I suspect that this is overfitting,
-        # so i try out swaping train and test set, which mean training on test set and test on train set 
-        # when run this method, val loss and train loss are almost similar, so overfit seem to be thw answer
-        train_dataset=ChestDataset(cfg=self.cfg,mode='test')
-        test_dataset=ChestDataset(cfg=self.cfg)
-        train_loader = torch.utils.data.DataLoader(
-                        train_dataset, 
-                        batch_size=self.cfg.train.batch_size)
-        test_loader = torch.utils.data.DataLoader(
-                        test_dataset,
-                        batch_size=self.cfg.train.batch_size)
-        self.train_epochs(train_loader,test_loader)
-        
-            
 
 
 def reset_weights(m):
