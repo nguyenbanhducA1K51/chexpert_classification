@@ -3,23 +3,24 @@ import pandas as pd
 import torch
 import numpy as np
 from torch.utils.data import Dataset
+from pathlib import Path
 import sys
 
-sys.path.append( "/root/repo/chexpert_classification/chexpert/" )
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-
-from data import dataUtils
 import torch
 import numpy as np
 import cv2
 import os
 import albumentations as A
 import json,os
-from data.common import csv_index,load_transform
+from data.common import load_transform
 from typing import Union, Tuple, List,Literal
 import cv2
 import random
 import matplotlib.pyplot as plt
+from pathlib import Path
+
 class ChestDataset(Dataset):  
     def __init__(self,cfg, mode:Literal["train","test"]="train",train_mode:Literal["default","progressive"]="default"):
         if mode=="train":
@@ -38,9 +39,7 @@ class ChestDataset(Dataset):
         self.df=pd.read_csv(csv_file)   
         self.columns= list(self.df.columns)
         self.class_=[]
-        # for i in range(len(self.class_idx)):
-        #      print (f"classifying class  {self.columns[self.class_idx[i]]}")
-        #      self.class_.append(self.columns[self.class_idx[i]])
+      
 
         self.df["orinIndex"]=self.df.index          
         if mini_data ==-1:
@@ -52,14 +51,7 @@ class ChestDataset(Dataset):
         self.df=self.df.iloc[self.idx].reset_index(drop=True)
         self.df.fillna(0, inplace=True)
         self.df.replace(-1,1,inplace=True)
-        # print (self.df.info())
-
-        # for column in self.class_:
-        #     unique_values = self.df[column].unique()
-        #     print(f"Unique values in '{column}': {unique_values}")
-        #     positive=np.sum(np.array(self.df[column]))
-        #     print (f"{column} total positive {positive}, ration {positive/len(self.df)}")
-        
+      
     def __len__(self):
         return self.length_sample
     def __getitem__(self,idx):
@@ -129,6 +121,11 @@ def random_visualize(train_dataset,test_dataset):
   
     train_samples={}
     test_samples={}
+    current_file_path = os.path.abspath(__file__)
+
+    parent_directory = os.path.dirname(current_file_path)
+    models_save_path=os.path.join (parent_directory, "output/models")
+
     save_folder="/root/repo/chexpert_classification/chexpert/output/learning_analysis"
     for i in range (n_samples):
 
@@ -163,7 +160,7 @@ def random_visualize(train_dataset,test_dataset):
 if __name__=="__main__":
     from easydict import EasyDict as edict
     import json 
-    cfg_path="/root/repo/chexpert_classification/chexpert/config/config.json"
+    cfg_path=Path(__file__).resolve().parent.parent /"config/config.json" 
     with open(cfg_path) as f:
         cfg = edict(json.load(f))
     traindataset=ChestDataset(cfg=cfg,mode="train")
@@ -171,17 +168,6 @@ if __name__=="__main__":
     random_visualize(traindataset,testdataset)
    
 
-
-    # for i in range (10):
-    #     img,label=dataset.__getitem__(i)
-    #     print ("shape",img.shape,label, np.min(img),np.max(img),np.mean(img))
-
-    # img1="/root/data/CheXpert-v1.0-small/train/patient10684/study10/view1_frontal.jpg"
-    # assert os.path.exists(img1), "not exist"
-    # x=cv2.imread(img1,0)
-    # print (np.max(x),np.min(x),np.mean(x))
-    # print (dataset.calculate_mean_std(-1))
-    # train_loader,val_loader=loadData(cfg)
 
     
 

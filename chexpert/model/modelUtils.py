@@ -55,7 +55,6 @@ def save_metrics_and_models(metrics,models):
     folder=os.path.dirname(os.path.abspath(__name__))+"/output/"
     models_folder=os.path.join(folder,"models") 
     os.makedirs( models_folder ,exist_ok=True)
-    # /root/repo/chexpert_classification/chexpert/output/models
     plots_folder=os.path.join(folder,"plot") 
     os.makedirs( plots_folder ,exist_ok=True)
     for i in range(len(models)):

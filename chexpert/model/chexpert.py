@@ -2,9 +2,6 @@
 import sys
 import torch
 import json,os
-# sys.path.append("/root/repo/chexpert_classification/chexpert/")
-# sys.path.append("/root/repo/chexpert_classification/chexpert/model")
-# sys.path.append("../model")
 from data.dataset import ChestDataset
 from data import dataUtils
 from data.common import csv_index
@@ -15,7 +12,7 @@ from torch.optim import Adam
 import torch.optim as optim
 import numpy as np
 import torch.nn as nn
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR,CosineAnnealingLR
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 import copy
@@ -161,7 +158,7 @@ class chexpertNet():
                     val_metric=self.eval(data_loader=val_loader,model=self.model,epoch=epoch)  
                     best_mean_AUC=max(best_mean_AUC,val_metric["meanAUC"])
                     val_metrics.append(val_metric)          
-                # self.lr_scheduler.step()
+                self.lr_scheduler.step()
    
         print ("Finish default training")
         print('-'*100)
@@ -173,7 +170,11 @@ class chexpertNet():
         data_loader=torch.utils.data.DataLoader(
                     test_dataset, 
                     batch_size=self.cfg.train.batch_size)
-        models_save_path="/root/repo/chexpert_classification/chexpert/output/models"
+        current_file_path = os.path.abspath(__file__)
+
+        parent_directory = os.path.dirname(current_file_path)
+        models_save_path=os.path.join (parent_directory, "output/models")
+        
         files = [f for f in os.listdir(models_save_path) if os.path.isfile(os.path.join(models_save_path, f))]
         pth_files = [f for f in files if f.endswith('.pth')]
         models=[]
@@ -291,7 +292,10 @@ class chexpertNet():
        
             if self.cfg.train.optimizer.name=="Adam":         
                 op=optim.Adam(model.parameters(),lr=self.cfg.train.optimizer.lr, weight_decay=self.cfg.train.optimizer.weight_decay)
-                scheduler = StepLR(op, step_size=1, gamma=0.1,verbose=True)
+                if self.cfg.train.optimizer.scheduler=="CosineAnnealingLR":  
+                    t_max=     self.cfg.train.optimizer.scheduler_params.T_max 
+                    eta_min=self.cfg.train.optimizer.scheduler_params.eta_min
+                    scheduler = CosineAnnealingLR(op,t_max,eta_min, verbose=True)
                 return op,scheduler
             elif self.cfg.train.optimizer.name=="SGD":             
                 op= optim.SGD(model.parameters(),lr=0.005, weight_decay=0.001)
@@ -306,12 +310,3 @@ def reset_weights(m):
         if hasattr(layer, 'reset_parameters'):
             # print(f'Reset trainable parameters of layer = {layer}')
             layer.reset_parameters()
-if __name__=="__main__":
-    from easydict import EasyDict as edict
-    import json
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    cfg_path="/root/repo/chexpert_classification/chexpert/config/config.json"
-    with open(cfg_path) as f:
-        cfg = edict(json.load(f))
-    net=chexpertNet(cfg=cfg,device=device)
-    net.switch_train_test()
