@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 class ChestDataset(Dataset):  
-    def __init__(self,cfg, mode:Literal["train","test"]="train",train_mode:Literal["default","progressive"]="default"):
+    def __init__(self,cfg,fold=1,mode:Literal["train","val","test"]="train",train_mode:Literal["default","progressive"]="default"):
         if mode=="train":
             csv_file=cfg.path.train_csv_path
             mini_data=cfg.mini_data.train
@@ -37,10 +37,15 @@ class ChestDataset(Dataset):
         self.class_idx=cfg.class_idx
        
         self.df=pd.read_csv(csv_file)   
+
+        if mode=="train":
+            self.df=self.df["fold"]!=fold
+        elif mode=="val":
+            self.df=self.df["fold"]=fold
+
         self.columns= list(self.df.columns)
         self.class_=[]
       
-
         self.df["orinIndex"]=self.df.index          
         if mini_data ==-1:
             self.length_sample=len(self.df)         
@@ -95,27 +100,7 @@ class ChestDataset(Dataset):
         var=np.sum(variations)/ (iteration*np.prod(shape))
         std=np.sqrt(var)
         return mean,std
-
               
-
-def tta_loader(cfg):
-    def expand (image,*arg,**karg):
-            image=np.expand_dims(image,axis=0)
-            return np.repeat(image,3,axis=0)   
-    img_size=320    
-    factor=0.05
-    ceil=int (img_size*(1+factor) )
-    floor=int (img_size*(1-factor) )
-    test_transform = A.Compose([
-            A.Resize(height=ceil,width=ceil) ,                     
-            A.ShiftScaleRotate( scale_limit =((-0.2, 0.2)) ),
-            A.RandomSizedCrop(min_max_height=(floor,ceil ),height=img_size,width=img_size),
-            A.Normalize(mean=[128.21/255], std=[73.22/255]),
-            A.Lambda( image=expand),                
-                        ])
-    test_data=ChestDataset(cfg=cfg,mode="test")
-    return torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False, num_workers=16)   
-
 def random_visualize(train_dataset,test_dataset):
     n_samples=10
   
@@ -159,10 +144,11 @@ def random_visualize(train_dataset,test_dataset):
 
 if __name__=="__main__":
     from easydict import EasyDict as edict
-    import json 
-    cfg_path=Path(__file__).resolve().parent.parent /"config/config.json" 
-    with open(cfg_path) as f:
-        cfg = edict(json.load(f))
+
+    import yaml
+    config_path= Path(__file__).resolve().parent.parent /"config/config.yaml"
+    with open(config_path, 'r') as stream:
+        cfg = yaml.load(stream, Loader=yaml.SafeLoader)
     traindataset=ChestDataset(cfg=cfg,mode="train")
     testdataset=ChestDataset(cfg=cfg,mode="test")
     random_visualize(traindataset,testdataset)

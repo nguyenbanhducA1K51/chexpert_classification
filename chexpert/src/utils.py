@@ -2,72 +2,43 @@ import torch.nn  as nn
 import numpy as np
 import torch
 import sys
-sys.path.append("../data")
-
-from torch.nn import functional as F
-from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
-from . import backbone
 import matplotlib.pyplot as plt
 import os
 import glob
-from easydict import EasyDict as edict
 import json
-from datetime import datetime
-from data.common import csv_index
+from torch.nn import functional as F
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, roc_auc_score
 import math 
-from typing import Literal,List
-path= os.path.dirname(os.path.abspath(__name__)) +"/output/record.json"
-with open(path) as f:
-    record = edict(json.load(f))
-class SaveBestModel: 
-    def __init__(
-        self, cfg
-    ):
-        self.best_auc=record.best_auc
-        self.cfg=cfg
-        
-    def __call__(
-        self, metric, 
-        epoch, model, optimizer, criterion
-    ):
-        # if int(cfg.mini_data)>=100000:
 
-            abspath=os.path.dirname(os.path.abspath(__name__))+"/output/best_model.pth"
-            if metric["meanAUC"] > self.best_auc:
-                write_json(key="best_auc",val=metric["meanAUC"],filepath=path)
-                self.best_auc= metric["meanAUC"]
-                print(f"\nBest validation  AUC: {self.best_auc}")
-                print(f"\nSaving best model for epoch: {epoch}\n")
-                torch.save({
-                    'meanAUC':metric["meanAUC"],
-                    'aucs': metric['aucs'],
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                  
-                    }, abspath)
-            
-def save_metrics_and_models(metrics,models):      
-    multiple_train_metrics=metrics["train_stats"]
-    multiple_val_metrics=metrics["val_stats"]
+sys.path.append("../")
+from model import backbone
+from data.common import csv_index
+
+
+
+def save_metrics_and_models(metrics,model,fold):   
+
+    train_metrics=metrics["train_stats"]
+    val_metrics=metrics["val_stats"]
     
-    now = datetime.now() 
-    dt_string = now.strftime("%d-%m-%Y-%H:%M:%S")
+
+
     folder=os.path.dirname(os.path.abspath(__name__))+"/output/"
     models_folder=os.path.join(folder,"models") 
     os.makedirs( models_folder ,exist_ok=True)
     plots_folder=os.path.join(folder,"plot") 
     os.makedirs( plots_folder ,exist_ok=True)
-    for i in range(len(models)):
-        torch.save({
-                    'fold':i+1,
-                    'train_metric':multiple_train_metrics[i],
-                    'val_metric':multiple_val_metrics[i],
-                    'mean_aucs_of_epochs':np.mean([data["meanAUC"] for data in multiple_val_metrics[i]]),
-                    'highest_mean_auc':np.max([data["meanAUC"] for data in multiple_val_metrics[i]] ),
-                    'model_state_dict': models[i],
-                  
-                    }, os.path.join(models_folder,f"fold_{i+1}.pth"))
-        save_plots(plots_folder,multiple_train_metrics[i],multiple_val_metrics[i],fold=i+1)
+    # for i in range(len(models)):
+    torch.save({
+                'fold':fold,
+                'train_metric':train_metrics,
+                'val_metric':val_metrics,
+                'mean_aucs_of_epochs':np.mean([data["meanAUC"] for data in val_metrics]),
+                'highest_mean_auc':np.max([data["meanAUC"] for data in val_metrics] ),
+                'model_state_dict': model.state_dict(),
+                
+                }, os.path.join(models_folder,f"fold_{fold}.pth"))
+    save_plots(plots_folder,train_metrics,val_metrics,fold=fold)
                
 
 def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,15 ]):
@@ -153,6 +124,7 @@ def write_json(key,val,filepath):
     data[key] = val
     with open(filepath, 'w') as file:
         json.dump(data, file, indent=4)
+        
 def calculateAUC (y_score,y_true,disease):
     y_score=torch.sigmoid(y_score)
     y_score=y_score.cpu().detach().numpy()
@@ -210,63 +182,25 @@ class AverageMeter():
         self.mean= np.mean(self.ls)
         self.cur=item
 
-def recordTraining(epoch=0,cfg=None, metric=None,transform=None):  
-    now = datetime.now()   
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    filePath=os.path.dirname(os.path.abspath(__name__))+"/model/output/recordTraining.csv"
-    if int(cfg.mini_data.train)>=100000:
-        with open(filePath, "a") as file:
-            epochIndex=epoch
-            meanAUC=metric["meanAUC"]
-            listAUC= list(metric["aucs"].values())
-            
-            criterion=cfg.criterion
-            if cfg.criterion=="balanceBCE":
-                beta=cfg.balanceBCE.beta 
-            else:
-                beta=NA
-            sample=cfg.mini_data.train
-            totalEpoch=cfg.train.epochs
-            op=cfg.train.optimizer.name
-            lr=cfg.train.optimizer.lr
-            if cfg.train_mode.name=="default":
-                progressiveSample="NA"
-                totalProgressiveEpoch="NA"
-                progressiveOP="NA"
-                progressivelr="NA"
-            else:
-                progressiveSample=cfg.progressive_mini_data.train
-                totalProgressiveEpoch=cfg.progressive_train.epochs
-                progressiveOP=cfg.progressive_train.optimizer.name
-                progressivelr=cfg.progressive_train.optimizer.lr
-            
-            finalString=""
-            finalString+=dt_string+","
-            for auc in listAUC:
-                finalString+=str(auc)+","
+class balanceBCE(nn.Module):
+    def __init__(self,beta,device):
+        super(balanceBCE,self).__init__()
+        self.beta=beta
+        self.device=device
+    def forward(self,output,target):
+        output=torch.sigmoid(output)
+        ep=1e-10
+        output=torch.clamp(output,min=ep, max=1-ep)
+        positive=torch.sum(target,dim=0)
+        negative= target.size()[0]-positive
+        positive_factor= (1-self.beta)/ (1-self.beta**positive+1e-10)
+        negative_factor=(1-self.beta)/ (1-self.beta**negative+1e-10)
+        positive_factor=  positive_factor.unsqueeze(0).to(self.device)
+        negative_factor= negative_factor.unsqueeze(0).to(self.device)
+        positive_factor=torch.repeat_interleave(positive_factor, torch.tensor([target.size()[0]]).to(self.device), dim=0)
+        negative_factor=torch.repeat_interleave(negative_factor, torch.tensor([target.size()[0]]).to(self.device), dim=0)
+        loss=-positive_factor*target*torch.log(output)-(1-target)* negative_factor*torch.log(1-output)
+        return loss
 
-            finalString+=str(meanAUC)+","
-            finalString+=str(cfg.backbone.name)+","
-            finalString+=str(cfg.train_mode.name)+","
-            finalString+=str(epochIndex)+","
-            finalString+=str(sample)+","   
-            finalString+=str(totalEpoch)+","
-            
-            finalString+=str(op)+","
-            finalString +=str(lr)+","
-            finalString+=str(criterion)+","
-            finalString+=str(beta)+","
-
-            finalString+=str(progressiveSample)+","   
-            finalString+=str(totalProgressiveEpoch)+","
-            
-            finalString+=str(progressiveOP)+","
-            finalString +=str( progressivelr)+","
-            finalString +=str( cfg.image.progressive_image_size)+","
-            finalString+=str(cfg.tta.usetta)+","
-            finalString+=str(cfg.tta.times)
-
-            # print (finalString)
-            file.write('\n'+finalString)
 
 

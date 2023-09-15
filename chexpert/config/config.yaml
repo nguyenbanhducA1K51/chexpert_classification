@@ -2,34 +2,44 @@
 path:
     project_path: /root/repo
     data_path: /root/data
+    save_k_fold: /root/data/CheXpert-v1.0-small/k_fold.csv
     train_csv_path: /root/data/CheXpert-v1.0-small/train.csv
     test_csv_path: /root/data/CheXpert-v1.0-small/valid.csv
-
-
 model: &model 
-  name: densenet121
-  model_params: &model_params
-      classes: 5
-
+    name: densenet121
+    model_params: &model_params
+        classes: 5
 image:
     image_fix_length: 320
     progressive_image_size: 160
-
 train_mode: default
 
-train_params:
-    loss:
-        balanceBCE:
-            beta: 0.99
-    epoch:  20
-    log_interval: 10
-    batch_size: 64
-    early_stopping: True
-      patient: 3
+epoch: &epoch 2
 
+train_params:
+    class_idx: 7,10,11,13,15
+    loss:
+        balanceBCE:
+            beta: 0.99
     
-progressive_train_params:
-   
+    log_interval: 10
+    batch_size: 64
+    early_stopping: True
+    patient: 3  
+
+optimizer: 
+    name: Adam
+    optimizer_params:
+        lr: 0.000075
+        weight_decay: 0.00001
+    scheduler: CosineAnnealingLR
+    scheduler_params:
+        T_max: 8
+        eta_min: 0.000001
+        verbose: True
+    epochs: *epoch  
+
+progressive_train_params:  
     loss:
         balanceBCE:
             beta: 0.99
@@ -37,15 +47,15 @@ progressive_train_params:
     log_interval: 10
     batch_size: 64
     early_stopping: True
-      patient: 3
-  
+    patient: 3
+
 mini_data:
     train: 200
     test: 200
 
 progressive_mini_data:
-  train: 200
-  val : 200
+    train: 200
+    val: 200
 
 
     

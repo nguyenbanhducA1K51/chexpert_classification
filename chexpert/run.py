@@ -2,7 +2,7 @@
 import sys
 import torch
 import json,os
-from model import chexpert
+from src import chexpert
 from torch.nn import functional as F
 from easydict import EasyDict as edict
 import yaml
@@ -22,8 +22,8 @@ if __name__=="__main__":
 
    
     net=chexpert.chexpertNet(cfg=config,device=device,fold=args.fold)
-    net.k_fold_train()
-    net.test()
+    net.train()
+    # net.test()
 
 
 
