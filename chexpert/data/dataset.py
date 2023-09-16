@@ -23,25 +23,25 @@ from pathlib import Path
 
 class ChestDataset(Dataset):  
     def __init__(self,cfg,fold=1,mode:Literal["train","val","test"]="train",train_mode:Literal["default","progressive"]="default"):
-        if mode=="train":
-            csv_file=cfg.path.train_csv_path
-            mini_data=cfg.mini_data.train
-        elif mode=="test":
-            csv_file=cfg.path.test_csv_path
-            mini_data=cfg.mini_data.test
+        if mode!="test":
+            csv_file=cfg["path"]["save_k_fold"]
+            mini_data=cfg["mini_data"]["train"]
         else:
-            raise RuntimeError("Invalid mode")
+            csv_file=cfg["path"]["test_csv_path"]
+            mini_data=cfg["mini_data"]["test"]
+       
         
         self.transform=load_transform(cfg,mode=mode,train_mode=train_mode)
-        self.root=cfg.path.root      
-        self.class_idx=cfg.class_idx
+        self.root=cfg["path"]["data_path"]      
+        self.class_idx= cfg["train_params"]["class_idx"].split(",")
+        self.class_idx=[int(x) for x in self.class_idx]
        
         self.df=pd.read_csv(csv_file)   
 
         if mode=="train":
-            self.df=self.df["fold"]!=fold
+            self.df=self.df[self.df["fold"]!=fold]
         elif mode=="val":
-            self.df=self.df["fold"]=fold
+            self.df=self.df[self.df["fold"]==fold]
 
         self.columns= list(self.df.columns)
         self.class_=[]
@@ -64,17 +64,11 @@ class ChestDataset(Dataset):
         label=label.to_numpy().astype(int)
         img_path=os.path.join(self.root,self.df.iloc[idx,0]) 
         image=cv2.imread(img_path,0)       
-        if self.transform is not None: 
-        
+        if self.transform is not None:       
             image=self.transform(image=image)  
         return  image["image"],label
     
-    def get_original_item(self,idx):
-        label=self.df.iloc[idx,self.class_idx]
-        label=label.to_numpy().astype(int)
-        img_path=os.path.join(self.root,self.df.iloc[idx,0]) 
-        image=cv2.imread(img_path,0)  
-        return image,label     
+      
     
     def calculate_mean_std(self,samples:int):
         means=[]
@@ -109,7 +103,7 @@ def random_visualize(train_dataset,test_dataset):
     current_file_path = os.path.abspath(__file__)
 
     parent_directory = os.path.dirname(current_file_path)
-    models_save_path=os.path.join (parent_directory, "output/models")
+
 
     save_folder="/root/repo/chexpert_classification/chexpert/output/learning_analysis"
     for i in range (n_samples):
@@ -144,12 +138,14 @@ def random_visualize(train_dataset,test_dataset):
 
 if __name__=="__main__":
     from easydict import EasyDict as edict
-
     import yaml
+
     config_path= Path(__file__).resolve().parent.parent /"config/config.yaml"
     with open(config_path, 'r') as stream:
         cfg = yaml.load(stream, Loader=yaml.SafeLoader)
     traindataset=ChestDataset(cfg=cfg,mode="train")
+    sam=traindataset.__getitem__(0)[0]
+    # print (sam.shape)
     testdataset=ChestDataset(cfg=cfg,mode="test")
     random_visualize(traindataset,testdataset)
    

@@ -14,7 +14,7 @@ image:
     progressive_image_size: 160
 train_mode: default
 
-epoch: &epoch 2
+epoch: &epoch 20
 
 train_params:
     class_idx: 7,10,11,13,15
@@ -23,7 +23,7 @@ train_params:
             beta: 0.99
     
     log_interval: 10
-    batch_size: 64
+    batch_size: 16
     early_stopping: True
     patient: 3  
 
@@ -50,8 +50,8 @@ progressive_train_params:
     patient: 3
 
 mini_data:
-    train: 200
-    test: 200
+    train: 2000000
+    test: 200000
 
 progressive_mini_data:
     train: 200

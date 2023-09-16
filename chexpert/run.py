@@ -12,6 +12,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('config', type=str)
     parser.add_argument('--fold', type=str, default=1)
+    parser.add_argument('--mode',type=str,default="train")
     return parser.parse_args()
 
 if __name__=="__main__":
@@ -20,10 +21,12 @@ if __name__=="__main__":
     with open(args.config, 'r') as stream:
         config = yaml.load(stream, Loader=yaml.SafeLoader)
 
-   
     net=chexpert.chexpertNet(cfg=config,device=device,fold=args.fold)
-    net.train()
-    # net.test()
+    if args.mode=="train":
+        net.train()
+    else:
+        net.test()
+
 
 
 

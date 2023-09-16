@@ -95,6 +95,8 @@ def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,
             ax[0,1].set(xlabel="epoch", ylabel="loss")
             ax[0,1].set_title("Mean loss")
             ax[0,1].legend()
+            ax[2,1].remove()
+            ax[2,2].remove()
             for i in range(row+1):
                 if stop_plot:
                     break

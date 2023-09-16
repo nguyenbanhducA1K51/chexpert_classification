@@ -22,9 +22,9 @@ csv_index={
 def load_transform(cfg,mode:Literal["train","test"]="train", train_mode:Literal["default","progressive"]="default") :     
     factor=0.05
     if train_mode=="default":           
-        img_size=cfg.image.image_fix_length
+        img_size=cfg ["image"]["image_fix_length"]
     elif train_mode=="progressive":
-        img_size=cfg.image.progressive_image_size
+        img_size=cfg ["image"][" progressive_image_size"]
     else :
         raise RuntimeError("invalid train mode")
           
