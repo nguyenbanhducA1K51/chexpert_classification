@@ -2,9 +2,12 @@
 path:
     project_path: /root/repo
     data_path: /root/data
-    save_k_fold: /root/data/CheXpert-v1.0-small/k_fold.csv
-    train_csv_path: /root/data/CheXpert-v1.0-small/train.csv
-    test_csv_path: /root/data/CheXpert-v1.0-small/valid.csv
+    process_train: /root/data/CheXpert-v1.0-small/k_fold.csv
+
+    # train_csv_path: /root/data/CheXpert-v1.0-small/train.csv
+    # test_csv_path: /root/data/CheXpert-v1.0-small/valid.csv
+
+    process_test: /root/data/CheXpert-v1.0-small/valid_process.csv
 model: &model 
     name: densenet121
     model_params: &model_params
@@ -14,8 +17,9 @@ image:
     progressive_image_size: 160
 train_mode: default
 
-epoch: &epoch 20
+epoch: &epoch 2
 
+frontal_epoch: 1
 train_params:
     class_idx: 7,10,11,13,15
     loss:
@@ -23,7 +27,7 @@ train_params:
             beta: 0.99
     
     log_interval: 10
-    batch_size: 16
+    batch_size: 32
     early_stopping: True
     patient: 3  
 
@@ -50,8 +54,8 @@ progressive_train_params:
     patient: 3
 
 mini_data:
-    train: 2000000
-    test: 200000
+    train: -1
+    test: -1
 
 progressive_mini_data:
     train: 200

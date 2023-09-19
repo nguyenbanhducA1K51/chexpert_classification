@@ -16,7 +16,7 @@ from data.common import csv_index
 
 
 
-def save_metrics_and_models(metrics,model,fold):   
+def save_metrics_and_models(metrics,models,fold):   
 
     train_metrics=metrics["train_stats"]
     val_metrics=metrics["val_stats"]
@@ -35,7 +35,7 @@ def save_metrics_and_models(metrics,model,fold):
                 'val_metric':val_metrics,
                 'mean_aucs_of_epochs':np.mean([data["meanAUC"] for data in val_metrics]),
                 'highest_mean_auc':np.max([data["meanAUC"] for data in val_metrics] ),
-                'model_state_dict': model.state_dict(),
+                'model_state_dict': [model.state_dict()  for model in models],
                 
                 }, os.path.join(models_folder,f"fold_{fold}.pth"))
     save_plots(plots_folder,train_metrics,val_metrics,fold=fold)
@@ -171,6 +171,9 @@ class Metric():
                 }
 
         return metrics
+    # def compute_frontal(self,outputs,targets):
+
+
 class AverageMeter():
     def __init__(self,):
         self.reset()

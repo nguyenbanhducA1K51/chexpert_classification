@@ -24,9 +24,9 @@ def load_transform(cfg,mode:Literal["train","test"]="train", train_mode:Literal[
     if train_mode=="default":           
         img_size=cfg ["image"]["image_fix_length"]
     elif train_mode=="progressive":
-        img_size=cfg ["image"][" progressive_image_size"]
+        img_size=cfg ["image"]["image_fix_length"]//2
     else :
-        raise RuntimeError("invalid train mode")
+        raise RuntimeError(f"invalid train mode{train_mode} ")
           
     ceil=int (img_size*(1+factor) )
     floor=int (img_size*(1-factor) )
@@ -50,7 +50,7 @@ def load_transform(cfg,mode:Literal["train","test"]="train", train_mode:Literal[
                                     ])  
     if mode=="train":
           return train_transform
-    elif mode=="test":
+    elif mode=="test" or mode=="val":
           return test_transform
     else:
           raise RuntimeError("invalid mode ..data/common.py")
