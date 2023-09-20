@@ -3,10 +3,6 @@ path:
     project_path: /root/repo
     data_path: /root/data
     process_train: /root/data/CheXpert-v1.0-small/k_fold.csv
-
-    # train_csv_path: /root/data/CheXpert-v1.0-small/train.csv
-    # test_csv_path: /root/data/CheXpert-v1.0-small/valid.csv
-
     process_test: /root/data/CheXpert-v1.0-small/valid_process.csv
 model: &model 
     name: densenet121
@@ -17,7 +13,7 @@ image:
     progressive_image_size: 160
 train_mode: default
 
-epoch: &epoch 2
+epoch: &epoch 10
 
 frontal_epoch: 1
 train_params:
@@ -34,7 +30,7 @@ train_params:
 optimizer: 
     name: Adam
     optimizer_params:
-        lr: 0.000075
+        lr: 0.0001
         weight_decay: 0.00001
     scheduler: CosineAnnealingLR
     scheduler_params:
@@ -47,7 +43,7 @@ progressive_train_params:
     loss:
         balanceBCE:
             beta: 0.99
-    epoch:  20
+    epoch:  2
     log_interval: 10
     batch_size: 64
     early_stopping: True

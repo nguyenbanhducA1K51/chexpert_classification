@@ -20,6 +20,7 @@ def save_metrics_and_models(metrics,models,fold):
 
     train_metrics=metrics["train_stats"]
     val_metrics=metrics["val_stats"]
+    test_metrics=metrics["test_stats"]
     
 
 
@@ -28,7 +29,6 @@ def save_metrics_and_models(metrics,models,fold):
     os.makedirs( models_folder ,exist_ok=True)
     plots_folder=os.path.join(folder,"plot") 
     os.makedirs( plots_folder ,exist_ok=True)
-    # for i in range(len(models)):
     torch.save({
                 'fold':fold,
                 'train_metric':train_metrics,
@@ -38,36 +38,50 @@ def save_metrics_and_models(metrics,models,fold):
                 'model_state_dict': [model.state_dict()  for model in models],
                 
                 }, os.path.join(models_folder,f"fold_{fold}.pth"))
-    save_plots(plots_folder,train_metrics,val_metrics,fold=fold)
-               
+    save_plots(plots_folder,train_metrics,val_metrics,test_metrics,fold=fold)
 
-def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,15 ]):
+def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx=[ 7,10,11,13,15 ]):
             classlabel=[]
             for x in class_idx:
                 classlabel.append(csv_index[str(x)])
 
+            test_save_path= os.path.join(folder,f"test_metric_fold{fold}.png")
             save_path=os.path.join(folder,f"metric_fold{fold}.png")
             
             train_meanAUC=[]
             val_meanAUC=[]
+            test_meanAUC=[]
+
             train_loss=[]
             val_loss=[]
 
             train_aucs=[]
             val_aucs=[]
+            test_aucs=[]
 
             for label in classlabel:
                 
                 train_label_list=[]
                 val_label_list=[]
+                test_label_list=[]
                 for item in train_metrics :
                     train_label_list.append((item["aucs"][label]))
                 for item in val_metrics :
                     val_label_list.append((item["aucs"][label]))
+                
+                for item in test_metrics :
+                    test_label_list.append((item["aucs"][label]))
+
+                
                 train_aucs.append(train_label_list)
                 val_aucs.append(val_label_list)
+
+                test_aucs.append(test_label_list)
+
             train_aucs=np.array(train_aucs).reshape(-1,len(classlabel))
             val_aucs=np.array(val_aucs).reshape(-1,len(classlabel))
+
+            test_aucs=np.array(val_aucs).reshape(-1,len(classlabel))
 
             for item in train_metrics :
                 train_meanAUC.append(item["meanAUC"])
@@ -75,12 +89,38 @@ def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,
             for item in val_metrics :
                 val_meanAUC.append(item["meanAUC"])
                 val_loss.append(item["loss"])
+            
+            for item in test_metrics :
+                test_meanAUC.append(item["meanAUC"])
+                # val_loss.append(item["loss"])
 
             train_meanAUC=np.array(train_meanAUC)
             val_meanAUC=np.array(val_meanAUC)
+            test_meanAUC=np.array(test_meanAUC)
 
             train_loss=np.array(train_loss)
             val_loss=np.array(val_loss)
+            
+            fig,ax=plt.subplots(2,3,figsize=(15,15))
+            ax[0,0].plot(test_meanAUC,label="Mean test AUC")
+            ax[0,0].set(xlabel="epoch", ylabel="auc")
+            ax[0,0].legend()
+            counter=0
+            for i in range(2):
+                for j in range(3):
+                    if i==0 and j==0:
+                        continue
+                    ax[i,j].plot(test_aucs[:,counter],color='blue', linestyle='-', marker="o",label="test auc")
+                    ax[i,j].set(xlabel="epoch", ylabel="auc")
+                    ax[i,j].set_title(classlabel[counter])
+                    ax[i,j].legend()
+                    counter+=1
+            fig.tight_layout()
+            plt.show()
+            fig.savefig(test_save_path)
+            plt.clf()            
+
+
             row=int(math.sqrt(len(classlabel)+2))
             fig,ax=plt.subplots(row+1,row+1,figsize=(15, 15))
             stop_plot=False
@@ -119,37 +159,13 @@ def save_plots(folder,train_metrics, val_metrics,fold=1, class_idx=[ 7,10,11,13,
             fig.tight_layout()
             plt.show()
             fig.savefig(save_path)
-    
-def write_json(key,val,filepath):
-    with open(filepath, 'r') as file:
-        data = json.load(file)
-    data[key] = val
-    with open(filepath, 'w') as file:
-        json.dump(data, file, indent=4)
-        
-def calculateAUC (y_score,y_true,disease):
-    y_score=torch.sigmoid(y_score)
-    y_score=y_score.cpu().detach().numpy()
-    y_true=y_true.cpu().detach().numpy()
-    AUC=[]
-    for i in range (y_score.shape[1]):
-        y_t=y_true[:,i].copy()
-        y_s=y_score[:,i].copy()
-        if len(np.unique(y_t )) !=2:
-            # print ("only one class present in disease "+str(i))
-            continue         
-        else:
-            score =roc_auc_score(y_true=y_true[:,i].copy(),y_score=y_score[:,i].copy()) 
-            score=round(score, 2)
-            AUC.append ( ("class {}".format(disease[i]),score))      
-    return AUC
+
 
 class Metric():
     def __init__(self,classes):
         self.classes=classes
 
     def compute_metrics(self,outputs, targets, losses=None):
-        # shape work on tensor
         outputs=outputs.clone().cpu()
         targets=targets.clone().cpu()
         n_classes = outputs.shape[1]
@@ -171,8 +187,6 @@ class Metric():
                 }
 
         return metrics
-    # def compute_frontal(self,outputs,targets):
-
 
 class AverageMeter():
     def __init__(self,):

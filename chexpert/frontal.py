@@ -1,6 +1,6 @@
 
+#  This file is for training a frontal/lateral classification if it is not specified in the data
 import sys
-
 import torch
 import json,os
 from pathlib import Path
@@ -13,10 +13,9 @@ import matplotlib.pyplot as plt
 
 from data.dataset import ChestDataset
 from data.common import csv_index
-# sys.path.append( str(Path(__file__).resolve().parent.parent) )
 sys.path.append("../")
-sys.path.append("/root/repo/chexpert_classification/chexpert/")
-sys.path.append("/root/repo/chexpert_classification/chexpert/src")
+# sys.path.append("/root/repo/chexpert_classification/chexpert/")
+# sys.path.append("/root/repo/chexpert_classification/chexpert/src")
 from model import backbone
 from model.frontal_cls import frontal_cls
 
@@ -24,20 +23,7 @@ import utils
 from loader import  Loader
 class chexpertNet():
     def __init__(self,cfg,device,fold):
-        # self.stage1_Loader=Loader(cfg,device)
-        # self.fold=fold
-        # self.cfg=cfg
-        # self.device=device
-
-        # self.class_idx=cfg["train_params"]["class_idx"].split(",")
-        # self.classes=[]
-        # for idx in self.class_idx:
-        #     self.classes.append(csv_index[str(idx)])
-        # self.stage1_model=self.stage1_Loader.model.to(device)
-        # self.stage1_optim, self.stage1_lr_scheduler=self.stage1_Loader.optim,self.stage1_Loader.scheduler
-        # self.stage1_loss=self.stage1_Loader.loss
-        # self.metric=utils.Metric(self.classes)  
-
+       
         self.Loader=Loader(cfg,device)
         self.fold=fold
         self.cfg=cfg
@@ -99,47 +85,11 @@ class chexpertNet():
             error=compute_err(outputs,targets)
             print ("err train",error)
 
-            train_save="/root/repo/chexpert_classification/chexpert/output/learning_analysis/frontal_train.png"
-            train_note="/root/repo/chexpert_classification/chexpert/output/learning_analysis/frontal_train.txt"
-            plot_sample(train_save,train_note,visual_ls)
-
-
-            
-
-    # # 
-    # def group(self,data_loader,model,epoch):
-    #     # 
-    #     print ("Grouping")
-    #     model.eval() 
-    #     outputs=[]
-    #     targets=[]
-    #     with torch.no_grad():
-    #         with tqdm(data_loader, unit="batch") as tepoch:
-    #             for idx,(data,_, target,index) in enumerate(tepoch):
-    #                 data=data.to(self.device).float()
-    #                 target=target.unsqueeze(1).to(self.device).float()          
-                    
-    #                 targets.append(target)
-    #                 output =model(data)
-    #                 outputs.append(output)        
-    #                 loss = self.loss(output, target).sum(1).mean(0)    
-    #                 losses.update(loss.item()) 
-
-    #                 x=random.random() 
-    #                 if x<prob and nums_visual>0:
-    #                     nums_visual-=1
-    #                     visual_ls.append( (data.detach().cpu().numpy(),output.detach().cpu().numpy() ))
-
-    #                 if idx%20==0:
-    #                     err=compute_err(outputs,targets)
-    #                     tepoch.set_postfix(loss=loss.item(),err=err) 
-
-    #     error=compute_err(outputs,targets)
-    #     print ("err test",error)
-           
+            # train_save="/root/repo/chexpert_classification/chexpert/output/learning_analysis/frontal_train.png"
+            # train_note="/root/repo/chexpert_classification/chexpert/output/learning_analysis/frontal_train.txt"
+            # plot_sample(train_save,train_note,visual_ls)
 
     def train(self):
-        # model= frontal_cls()
         train_dataset=ChestDataset(cfg=self.cfg,mode="train",fold=self.fold)
     
         lowres_train_dataset=ChestDataset(cfg=self.cfg,mode="train", fold=self.fold,train_mode="progressive") if self.cfg["train_mode"]=="progressive" else None
@@ -195,9 +145,6 @@ class chexpertNet():
         torch.save(self.model.state_dict(), save_frontal_cls_path)
         print('-'*100)
 
-        
-        # utils.save_metrics_and_models({"train_stats":train_metrics,"val_stats":val_metrics},self.model,self.fold)
-
     
 def compute_err(outputs,targets):
 
@@ -205,10 +152,8 @@ def compute_err(outputs,targets):
             out=torch.sigmoid(out).float()
             out[out>0.5]=1.
             out[out<=0.5]=0.
-
             tar=torch.concat(targets,dim=0).detach().view(-1)
             out[out>0.5]=1.
-            # print (abs(tar-out).sum(),tar.shape[0])
             error=(abs(tar-out)).sum()/tar.shape[0]
             return error
       

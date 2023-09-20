@@ -36,14 +36,16 @@ class ChestDataset(Dataset):
         self.root=cfg["path"]["data_path"]      
         self.class_idx= cfg["train_params"]["class_idx"].split(",")
         self.class_idx=[int(x) for x in self.class_idx]
-       
-        self.df=pd.read_csv(csv_file)   
+            
+        self.df=pd.read_csv(csv_file)  
+        
         self.view=view
 
         if mode=="train":
-            self.df=self.df[self.df["fold"]!=fold]
+            self.df['fold'] =  self.df['fold'].astype(int)
+            self.df=self.df[self.df["fold"]!=int(fold)]
         elif mode=="val":
-            self.df=self.df[self.df["fold"]==fold]
+            self.df=self.df[self.df["fold"]==int(fold)]
 
         self.columns= list(self.df.columns)
         self.class_=[]
@@ -59,7 +61,7 @@ class ChestDataset(Dataset):
         self.idx=np.random.choice(np.arange(0,len(self.df)), size=self.length_sample)
 
         self.df=self.df.iloc[self.idx].copy().reset_index(drop=True)
-
+        
         if view=="frontal":
             self.df = self.df.loc[ self.df["is_frontal"] == 1].copy().reset_index(drop=True)
         elif view=="lateral":

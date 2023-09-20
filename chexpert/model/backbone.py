@@ -6,7 +6,7 @@ import sys
 class DenseNetClassifier (nn.Module):
     def __init__ (self,num_classes,pretrain=True):
         super(DenseNetClassifier, self).__init__()
-        denseNet=models.densenet121(weights="DenseNet121_Weights.DEFAULT" if pretrain else None)
+        denseNet=models.densenet121(pretrained=  pretrain )
         self.dense=denseNet.features  
         self.pool=F.adaptive_avg_pool2d
         self.n_features= denseNet.classifier.in_features
@@ -22,7 +22,7 @@ class DenseNetClassifier (nn.Module):
             z=torch.flatten(z,1)
             binary=class_layer(z)
             logits.append(binary)
-        logits=torch.concat(logits,dim=1)    
+        logits=torch.cat(logits,dim=1)    
         
         return logits
     def generateClassificationLayer(self,in_feature):
