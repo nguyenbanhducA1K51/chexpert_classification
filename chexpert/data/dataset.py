@@ -111,40 +111,27 @@ class ChestDataset(Dataset):
         std=np.sqrt(var)
         return mean,std
               
-def random_visualize(train_dataset,test_dataset):
+def random_visualize(train_dataset,test_dataset,save_folder="/root/repo/chexpert_classification/output/visualize"):
     n_samples=10
   
     train_samples={}
     test_samples={}
-    current_file_path = os.path.abspath(__file__)
-
-    parent_directory = os.path.dirname(current_file_path)
-
-
-    save_folder="/root/repo/chexpert_classification/chexpert/output/learning_analysis"
     for i in range (n_samples):
 
         train_idx=random.choice(range(len(train_dataset)))
         test_idx=random.choice(range(len(test_dataset)))
         train_samples[str(train_idx)]=train_dataset.__getitem__(train_idx)
         test_samples[str(test_idx)]=test_dataset.__getitem__(test_idx) 
-    fig,ax=plt.subplots(4,n_samples, figsize=(30,30))
+    fig,ax=plt.subplots(2,n_samples, figsize=(30,30))
     plt.tight_layout()
 
     for i,key in enumerate (train_samples.keys()):
         ax[0,i].imshow(  train_samples[key][0][0],cmap="gray")
         ax[0,i].set_title(f"row {key} of train dataset" )
 
-        ax[2,i].imshow(train_dataset.get_original_item(int(key))[0],cmap="gray")   
-        ax[2,i].set_title(f"row {key} of original train dataset" )    
-
     for i,key in enumerate (test_samples.keys()):
         ax[1,i].imshow( test_samples[key][0][0], cmap="gray")
         ax[1,i].set_title(f"row {key} of test dataset" )
-
-        ax[3,i].imshow(test_dataset.get_original_item(int(key))[0],cmap="gray")   
-        ax[3,i].set_title(f"row {key} of original test dataset" )    
-
 
     plt.show()
     plt.savefig(os.path.join(save_folder,"samples_visualize.png"))
@@ -160,17 +147,20 @@ if __name__=="__main__":
     config_path= Path(__file__).resolve().parent.parent /"config/config.yaml"
     with open(config_path, 'r') as stream:
         cfg = yaml.load(stream, Loader=yaml.SafeLoader)
-    traindataset=ChestDataset(cfg=cfg,mode="train")
-    latdataset=ChestDataset(cfg=cfg,mode="train",view="lateral")
+    f_trainset=ChestDataset(cfg=cfg,mode="train")
+    l_trainset=ChestDataset(cfg=cfg,mode="train",view="lateral")
+    f_testset=ChestDataset(cfg=cfg,mode="test")
+    l_testset=ChestDataset(cfg=cfg,mode="test",view="lateral")
 
-    loader=DataLoader(traindataset,batch_size=5)
-    for i , sample in enumerate(loader):
-        pass
+    
+
+   
 
     # sam=traindataset.__getitem__(0)[0]
     # # print (sam.shape)
     # testdataset=ChestDataset(cfg=cfg,mode="test")
-    # random_visualize(traindataset,testdataset)
+    # random_visualize(f_trainset,f_testset)
+    random_visualize(l_trainset,l_testset)
    
 
 

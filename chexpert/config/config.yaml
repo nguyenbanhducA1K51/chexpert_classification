@@ -13,7 +13,7 @@ image:
     progressive_image_size: 160
 train_mode: default
 
-epoch: &epoch 10
+epoch: &epoch 5
 
 frontal_epoch: 1
 train_params:
@@ -50,8 +50,8 @@ progressive_train_params:
     patient: 3
 
 mini_data:
-    train: -1
-    test: -1
+    train: 100
+    test: 100
 
 progressive_mini_data:
     train: 200

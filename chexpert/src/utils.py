@@ -92,7 +92,6 @@ def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx
             
             for item in test_metrics :
                 test_meanAUC.append(item["meanAUC"])
-                # val_loss.append(item["loss"])
 
             train_meanAUC=np.array(train_meanAUC)
             val_meanAUC=np.array(val_meanAUC)
@@ -110,7 +109,7 @@ def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx
                 for j in range(3):
                     if i==0 and j==0:
                         continue
-                    ax[i,j].plot(test_aucs[:,counter],color='blue', linestyle='-', marker="o",label="test auc")
+                    ax[i,j].plot(test_aucs[counter],color='blue', linestyle='-', marker="o",label="test auc")
                     ax[i,j].set(xlabel="epoch", ylabel="auc")
                     ax[i,j].set_title(classlabel[counter])
                     ax[i,j].legend()
@@ -119,10 +118,8 @@ def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx
             plt.show()
             fig.savefig(test_save_path)
             plt.clf()            
-
-
-            row=int(math.sqrt(len(classlabel)+2))
-            fig,ax=plt.subplots(row+1,row+1,figsize=(15, 15))
+            
+            fig,ax=plt.subplots(3,3,figsize=(15, 15))
             stop_plot=False
             counter=0
             ax[0,0].plot(train_meanAUC,label="Mean train AUC")
@@ -137,10 +134,10 @@ def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx
             ax[0,1].legend()
             ax[2,1].remove()
             ax[2,2].remove()
-            for i in range(row+1):
+            for i in range(3):
                 if stop_plot:
                     break
-                for j in range (row+1):
+                for j in range (3):
                     if i==0 and j==0:
                         continue
                     if i==0 and j==1:
@@ -150,8 +147,8 @@ def save_plots(folder,train_metrics, val_metrics, test_metrics,fold=1, class_idx
                     if counter>=len(classlabel):
                         stop_plot=True
                         break             
-                    ax[i,j].plot(train_aucs[:,counter],color='green', linestyle='-', marker="o",label="train auc")
-                    ax[i,j].plot(val_aucs[:,counter],color='blue', linestyle='-', marker="o",label="val auc")
+                    ax[i,j].plot(train_aucs[counter],color='green', linestyle='-', marker="o",label="train auc")
+                    ax[i,j].plot(val_aucs[counter],color='blue', linestyle='-', marker="o",label="val auc")
                     ax[i,j].set(xlabel="epoch", ylabel="auc")
                     ax[i,j].set_title(classlabel[counter])
                     ax[i,j].legend()

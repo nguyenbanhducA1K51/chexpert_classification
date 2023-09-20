@@ -52,9 +52,6 @@ class chexpertNet():
                 print (f"{k} train epoch{epoch}")
                 model=dict[k][0]
                 data_loader=dict[k][1]
-
-
-
                 optim=dict[k][2]
                 log_interval=self.cfg["train_params"]["log_interval"]
                 outputs=[]
@@ -218,15 +215,6 @@ class chexpertNet():
         utils.save_metrics_and_models({"train_stats":train_metrics,"val_stats":val_metrics,"test_stats":test_metrics},[self.f_model,self.l_model],self.fold)
         
     
-
-    def train_frontal(self):
-        train_dataset=ChestDataset(cfg=self.cfg,mode="train",fold=self.fold)
-        train_loader = torch.utils.data.DataLoader(
-                    train_dataset, 
-                    batch_size=self.cfg["train_params"]["batch_size"])
-        val_loader = torch.utils.data.DataLoader(
-                    train_dataset,
-                    batch_size=self.cfg["train_params"]["batch_size"])   
 
 if __name__=="__main__":
      
