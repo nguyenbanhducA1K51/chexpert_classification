@@ -24,15 +24,20 @@ pip install -r requirements.txt
 
 ## Usage
 
-- Open the chexpert/config/config.py file and change the value of following variable:
+- Open the ../chexpert/config/config.yaml file and change the value of following variable:
 "project_path": "path where you clone the this repository"
-"root_path": "path where you download your dataset"
-"train_csv_path": "path to train csv file"
- "test_csv_path": "path to test csv file"
-- To adjust other parameter, look at other variable in this config file and some explainations at conifg_instruction.py
+"data_path": "path where you download your dataset"
+" process_train": "path that will save train/val  csv file after process them"
+ "process_test": "path that will save train/test csv file after process them"
+
+- First , run the preprocess file at "..chexpert/preprocess.py" 
+```bash
+python3 preprocess.py
+```
+
 - Run the training pipeline by
 ```bash
-python3 __main__.py
+bash chexpert/scripts/train.sh
 ```
 
 

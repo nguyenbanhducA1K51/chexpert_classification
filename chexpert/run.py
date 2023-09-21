@@ -22,10 +22,9 @@ if __name__=="__main__":
         config = yaml.load(stream, Loader=yaml.SafeLoader)
 
     net=chexpert.chexpertNet(cfg=config,device=device,fold=args.fold)
-    if args.mode=="train":
-        net.train()
-    else:
-        net.test()
+
+    net.train()
+  
 
 
 

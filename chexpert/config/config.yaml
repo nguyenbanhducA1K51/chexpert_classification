@@ -13,7 +13,7 @@ image:
     progressive_image_size: 160
 train_mode: default
 
-epoch: &epoch 5
+epoch: &epoch 3
 
 frontal_epoch: 1
 train_params:
